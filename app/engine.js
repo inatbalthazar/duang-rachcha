@@ -380,9 +380,11 @@ window.Duang = (() => {
     text(ctx, cname, sx + dotR * 2 + 7, ccy, F.k4, cs, SUB);
   }
 
+  // points down: the full reading is in the comments under the post
   function drawArrow(ctx, x, cy, w, color) {
+    const cx = x + w / 2;
     ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + w, cy); ctx.moveTo(x + w - 9, cy - 8); ctx.lineTo(x + w, cy); ctx.lineTo(x + w - 9, cy + 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 11); ctx.moveTo(cx - 8, cy + 3); ctx.lineTo(cx, cy + 11); ctx.lineTo(cx + 8, cy + 3); ctx.stroke();
   }
 
   function drawFooter(ctx, v, T, S) {
@@ -512,10 +514,12 @@ window.Duang = (() => {
       .replace(/^#{1,6}\s+/gm, '')
       .replace(/^\s*---+\s*$/gm, ''));
   }
+  // The AI writes the short post caption, then this marker line, then the full reading for the first comment.
+  const COMMENT_MARK = /^[ \t]*=+[ \t]*คอมเมนต์[ \t]*=+[ \t]*$/m;
   function parse(raw) {
     const msgs = [];
-    const s = String(raw || '').trim();
-    let obj = null, caption = '';
+    const s = String(raw || '').trim().replace(/\*\*|__/g, '');
+    let obj = null, caption = '', comment = '';
     const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) {
       // the caption is what Claude writes after the JSON block; chat lines before it are dropped
@@ -526,10 +530,13 @@ window.Duang = (() => {
       const a = s.indexOf('{'), b = s.lastIndexOf('}');
       if (a >= 0 && b > a) { try { obj = JSON.parse(s.slice(a, b + 1)); caption = s.slice(b + 1).replace(/^\s*```/, ''); } catch {} }
     }
+    const mark = caption.match(COMMENT_MARK);
+    if (mark) { comment = cleanCaption(caption.slice(mark.index + mark[0].length)); caption = caption.slice(0, mark.index); }
     caption = cleanCaption(caption);
     if (obj && caption) caption = ensureDayTag(caption, obj.dayTitle);
     if (!obj) return { msgs: [['err', 'ยังหาดวงในข้อความที่วางไม่เจอ ลองกลับไปที่แอป AI แล้วกดคัดลอกคำตอบทั้งหมดอีกครั้ง']] };
     if (!Array.isArray(obj.days) || obj.days.length < 7) return { msgs: [['err', 'ดวงยังไม่ครบ 7 วัน (อาทิตย์ถึงเสาร์) ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']] };
+    if (!comment) msgs.push(['warn', 'ไม่มีคำทำนายฉบับเต็มสำหรับคอมเมนต์ ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']);
     if (!obj.date) msgs.push(['warn', 'ไม่มีวันที่ ภาพจะไม่มีวันที่']);
     if (!obj.dayTitle) msgs.push(['warn', 'ไม่มีชื่อวัน หัวข้อจะเหลือแค่ "ดวงวัน"']);
     obj.days.slice(0, 7).forEach((it, i) => {
@@ -540,7 +547,7 @@ window.Duang = (() => {
       if (!DAY_COLORS[String(it.day || '').trim()]) msgs.push(['warn', `${n}: ไม่รู้จักชื่อวันนี้ ใช้สีตามลำดับแถวแทน`]);
     });
     obj.days = obj.days.slice(0, 7);
-    return { obj, caption, msgs };
+    return { obj, caption, comment, msgs };
   }
 
   // ---------- public: caption checks (Facebook) ----------
@@ -564,6 +571,12 @@ window.Duang = (() => {
     if (longPara.length) out.push(['warn', 'มีย่อหน้าที่ยาวเกินไป อ่านยากบนมือถือ']);
     if (!/(ความบันเทิง|วิจารณญาณ)/.test(t)) out.push(['warn', 'ยังไม่มีข้อความ "เพื่อความบันเทิง โปรดใช้วิจารณญาณ"']);
     if (!out.length) out.push(['ok', 'แคปชันปลอดภัย โพสต์ได้']);
+    return out;
+  }
+  // The comment carries the full reading, so only the wording rules apply (no hashtag or disclaimer checks).
+  function checkComment(t) {
+    const out = [];
+    CAPTION_RULES.forEach(([k, re, msg]) => { const m = String(t || '').match(re); if (m) out.push([k, `คอมเมนต์: ${msg} (คำว่า "${m[0]}")`]); });
     return out;
   }
 
@@ -594,29 +607,41 @@ window.Duang = (() => {
 - คะแนนต้องสอดคล้องกับ headline และแต่ละวันไม่ควรได้คะแนนชุดเดียวกัน
 - luckyNumber เป็นตัวเลข 1–2 หลัก, luckyColorName ชื่อสีภาษาไทยคำเดียวสั้นๆ, luckyColorHex รหัสสีของสีนั้น
 
-หลัง JSON ให้เขียนแคปชันโพสต์ Facebook ฉบับเต็ม เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown ตามโครงนี้
+หลัง JSON ให้เขียน 2 ส่วน เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown
+
+ส่วนที่ 1 แคปชันโพสต์ Facebook แบบสั้น (ไม่ต้องใส่คำทำนายรายวันเกิด) ตามโครงนี้
 บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็นดวงวัน${wd}ที่ ${ds}
-บรรทัดที่ 2: ประโยคชวนอ่านสั้นๆ อีกหนึ่งประโยค
+บรรทัดที่ 2: บอกสั้นๆ ว่าอ่านคำทำนายฉบับเต็มของทุกวันเกิดได้ที่คอมเมนต์ใต้โพสต์ ลงท้ายด้วย 👇
 (เว้นหนึ่งบรรทัด)
-แล้วแยกเป็นช่วงของแต่ละวันเกิด เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
+"ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุกวันแบบสุภาพ 1 บรรทัด
+(เว้นหนึ่งบรรทัด)
+แฮชแท็ก 3–5 อัน ต้องมี #ดวงวัน${wd} เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น #ดูดวงรายวัน #ดวงวันนี้
+
+จากนั้นขึ้นบรรทัดใหม่ แล้วพิมพ์บรรทัดนี้ตามตัวเป๊ะๆ
+=== คอมเมนต์ ===
+
+ส่วนที่ 2 คำทำนายฉบับเต็ม (จะนำไปโพสต์เป็นคอมเมนต์แรกใต้โพสต์) ตามโครงนี้
+บรรทัดแรก: คำทำนายฉบับเต็ม ดวงวัน${wd}ที่ ${ds}
+(เว้นหนึ่งบรรทัด)
+แล้วแยกเป็นช่วงของแต่ละวันเกิด ครบ 7 วัน เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
 🔴 คนเกิดวันอาทิตย์   (ใช้ 🔴 อาทิตย์, 🟡 จันทร์, 🩷 อังคาร, 🟢 พุธ, 🟠 พฤหัส, 🔵 ศุกร์, 🟣 เสาร์)
-งาน: ประโยคสั้น 1 ประโยค
-เงิน: ประโยคสั้น 1 ประโยค
-ความรัก: ประโยคสั้น 1 ประโยค
+งาน: 1–2 ประโยค
+เงิน: 1–2 ประโยค
+ความรัก: 1–2 ประโยค
 เลขมงคล .. · สีมงคล ..
 (ข้อมูลต้องตรงกับ JSON)
-ปิดท้าย: "ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุกวันแบบสุภาพ 1 บรรทัด
-บรรทัดสุดท้าย: แฮชแท็ก 3–5 อัน ต้องมี #ดวงวัน${wd} เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น #ดูดวงรายวัน #ดวงวันนี้
-ผู้เขียนแคปชันเป็นผู้หญิง ใช้คำลงท้าย "ค่ะ" หรือ "คะ" (คำถาม) เท่านั้น ห้ามใช้ "ครับ" และห้ามแทนตัวเองว่า "ผม"
-เว้นบรรทัดว่าง 1 บรรทัดหลังจบแต่ละส่วนเสมอ: หลังบรรทัดเปิด, หลังจบแต่ละวันเกิด, ก่อนข้อความปิดท้าย และก่อนแฮชแท็ก
+ปิดท้าย: "ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" (ส่วนนี้ไม่ต้องมีแฮชแท็ก)
 
-ข้อห้ามของแคปชัน (ผิดกฎหรือ Facebook ลดการมองเห็น)
+ผู้เขียนเป็นผู้หญิง ใช้คำลงท้าย "ค่ะ" หรือ "คะ" (คำถาม) เท่านั้น ห้ามใช้ "ครับ" และห้ามแทนตัวเองว่า "ผม"
+เว้นบรรทัดว่าง 1 บรรทัดหลังจบแต่ละส่วนเสมอ
+
+ข้อห้ามของแคปชันและคอมเมนต์ (ผิดกฎหรือ Facebook ลดการมองเห็น)
 - ห้ามขอให้พิมพ์ "สาธุ" หรือคอมเมนต์เพื่อรับโชค ห้ามชวนแชร์ แท็กเพื่อน หรือกดไลก์เพื่อรับดวง
 - ห้ามพูดถึงหวย เลขเด็ด สลาก หรือการพนัน และห้ามโยงเลขมงคลกับการเสี่ยงโชคด้วยเงิน
 - ห้ามรับประกันผล (เช่น รวยแน่ 100%) ห้ามชวนซื้อของแก้ดวงหรือโอนเงิน
 - ห้ามให้คำแนะนำเจาะจงเรื่องการลงทุนหรือสุขภาพ
-- ใช้อีโมจิเฉพาะหัวข้อแต่ละวัน ไม่ใส่อีโมจิรกทุกบรรทัด ไม่ใช้เครื่องหมาย !!! ซ้ำๆ`;
+- ใช้อีโมจิเฉพาะหัวข้อแต่ละวันและ 👇 ในแคปชัน ไม่ใส่อีโมจิรกทุกบรรทัด ไม่ใช้เครื่องหมาย !!! ซ้ำๆ`;
   }
 
-  return { W, H, DIMS, loadMascots, chooseVariants, draw, parse, formatCaption, checkCaption, buildPrompt, thaiDate };
+  return { W, H, DIMS, loadMascots, chooseVariants, draw, parse, formatCaption, checkCaption, checkComment, buildPrompt, thaiDate };
 })();

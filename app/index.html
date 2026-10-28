@@ -132,20 +132,26 @@ label { font-size: 15px; color: var(--muted); }
     <button class="btn ghost" id="reroll" type="button">เปลี่ยนแบบภาพ</button>
     <div class="msgs" id="capMsgs"></div>
     <details>
-      <summary>ดูหรือแก้แคปชัน</summary>
-      <textarea id="caption" spellcheck="false" style="min-height:280px"></textarea>
+      <summary>ดูหรือแก้แคปชัน (แบบสั้น)</summary>
+      <textarea id="caption" spellcheck="false" style="min-height:200px"></textarea>
+    </details>
+    <details>
+      <summary>ดูหรือแก้คอมเมนต์ (คำทำนายฉบับเต็ม)</summary>
+      <textarea id="comment" spellcheck="false" style="min-height:320px"></textarea>
     </details>
   </section>
 
   <section class="step" id="s4">
     <h2><span class="num">4</span>โพสต์ลง Facebook</h2>
     <div class="stack" id="directBox" hidden>
-      <button class="btn" id="postBtn" type="button">โพสต์ลงเพจเลย (ภาพ + แคปชัน)</button>
-      <p class="how" id="postHow">โพสต์ขึ้นหน้าเพจ <b id="pageNameDirect">เพจ</b> ทันทีพร้อมแคปชัน ไม่ต้องเปิดแอป Facebook</p>
+      <button class="btn" id="postBtn" type="button">โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)</button>
+      <p class="how" id="postHow">โพสต์ขึ้นหน้าเพจ <b id="pageNameDirect">เพจ</b> ทันทีพร้อมแคปชัน แล้วใส่คำทำนายฉบับเต็มเป็นคอมเมนต์แรกให้ ไม่ต้องเปิดแอป Facebook</p>
       <p class="small" style="text-align:center">หรือแชร์เองตามวิธีด้านล่าง</p>
     </div>
     <button class="btn" id="shareBtn" type="button">แชร์ภาพไป Facebook</button>
     <p class="how">กดแล้วเลือก <b>Facebook</b> ตรวจว่าโพสต์ในนาม <b id="pageNameHow">เพจ</b> จากนั้น <b>กดค้างช่องข้อความ → วาง</b> (แคปชันคัดลอกไว้ให้แล้ว) แล้วกดโพสต์</p>
+    <button class="btn" id="copyComment" type="button">คัดลอกคอมเมนต์</button>
+    <p class="how">โพสต์เสร็จแล้ว กลับมากดปุ่มนี้ แล้วไปที่โพสต์ใน Facebook กด <b>แสดงความคิดเห็น → กดค้าง → วาง</b> แล้วส่ง</p>
     <div class="pair">
       <button class="btn ghost" id="copyCap" type="button">คัดลอกแคปชัน</button>
       <button class="btn ghost" id="saveBtn" type="button">บันทึกภาพ</button>
@@ -168,7 +174,7 @@ label { font-size: 15px; color: var(--muted); }
       <label for="pageSub">ข้อความใต้ชื่อ</label>
       <input type="text" id="pageSub" value="ติดตามดวงรายวันได้ทุกวัน">
       <label for="cta">ข้อความปุ่มขวาล่าง</label>
-      <input type="text" id="cta" value="กดอ่านต่อเพื่ออ่านคำทำนายฉบับเต็ม">
+      <input type="text" id="cta" value="อ่านคำทำนายฉบับเต็มที่คอมเมนต์">
       <p class="small">แบบภาพ: "สุ่ม" จะเปลี่ยนหน้าตาไปทุกวัน และไม่ซ้ำกับภาพที่แชร์ไปใน 14 วันล่าสุด</p>
       <div class="grid2" id="variants"></div>
       <div class="pair">
@@ -218,8 +224,14 @@ label { font-size: 15px; color: var(--muted); }
       { day: 'เสาร์', headline: 'ใจเย็นไว้ ผลงานจะออกมาดี', work: 4, money: 3, love: 3, luckyNumber: '44', luckyColorName: 'น้ำเงิน', luckyColorHex: '#3B6FD8' }
     ]
   };
-  const SAMPLE_CAPTION = `ดวงวันพุธที่ 28 ตุลาคม 2569 มาแล้ว
-วันนี้ใครเด่นเรื่องไหน อ่านของวันเกิดตัวเองได้เลย
+  const SAMPLE_CAPTION = `ดวงวันพุธที่ 28 ตุลาคม 2569 มาแล้วค่ะ
+อ่านคำทำนายฉบับเต็มของทุกวันเกิดได้ที่คอมเมนต์ใต้โพสต์นี้เลยค่ะ 👇
+
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
+ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกวันนะคะ
+
+#ดวงวันพุธ #ดูดวงรายวัน #ดวงวันนี้ #ดวงรายวัน`;
+  const SAMPLE_COMMENT = `คำทำนายฉบับเต็ม ดวงวันพุธที่ 28 ตุลาคม 2569
 
 🟡 คนเกิดวันจันทร์
 งาน: มีคนพร้อมช่วยหนุน งานค้างเดินหน้าได้
@@ -227,10 +239,7 @@ label { font-size: 15px; color: var(--muted); }
 ความรัก: คุยกันเข้าใจง่ายขึ้น
 เลขมงคล 15 · สีมงคล ชมพู
 
-ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
-ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกวัน
-
-#ดวงวันพุธ #ดูดวงรายวัน #ดวงวันนี้ #ดวงรายวัน`;
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ`;
 
   let saved = store.get('current', null);
   let data = saved?.data || SAMPLE;
@@ -276,7 +285,7 @@ label { font-size: 15px; color: var(--muted); }
     list.forEach(([k, t]) => { const p = document.createElement('p'); p.className = 'msg ' + k; p.textContent = t; el.appendChild(p); });
   }
   function accept(raw) {
-    const { obj, caption, msgs } = Duang.parse(raw);
+    const { obj, caption, comment, msgs } = Duang.parse(raw);
     if (!obj) { showMsgs($('parseMsgs'), msgs); $('s2').classList.remove('done'); return false; }
     const head = ['ok', `ได้ดวงวัน${String(obj.dayTitle || '').replace(/^วัน/, '')} ${obj.date || ''} ครบ 7 วันแล้ว`];
     showMsgs($('parseMsgs'), [head, ...msgs.filter(m => m[0] !== 'ok')]);
@@ -284,7 +293,7 @@ label { font-size: 15px; color: var(--muted); }
     if (data.date !== obj.date) reroll = 0;
     data = obj; isSample = false;
     if (caption) $('caption').value = caption;
-    store.set('current', { data, caption: $('caption').value });
+    $('comment').value = comment || '';
     onCaption(); render();
     $('s3').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
@@ -318,10 +327,11 @@ label { font-size: 15px; color: var(--muted); }
     $('sampleTag').hidden = !isSample;
   }
   function onCaption() {
-    showMsgs($('capMsgs'), Duang.checkCaption($('caption').value));
-    if (!isSample) store.set('current', { data, caption: $('caption').value });
+    showMsgs($('capMsgs'), [...Duang.checkComment($('comment').value), ...Duang.checkCaption($('caption').value)]);
+    if (!isSample) store.set('current', { data, caption: $('caption').value, comment: $('comment').value });
   }
   $('caption').addEventListener('input', onCaption);
+  $('comment').addEventListener('input', onCaption);
   $('reroll').addEventListener('click', () => { reroll++; render(); });
 
   // ---------- step 4: share ----------
@@ -354,7 +364,7 @@ label { font-size: 15px; color: var(--muted); }
       try {
         await navigator.share({ files: [file] });
         remember();
-        toast(capOk ? 'อย่าลืม: กดค้างช่องข้อความใน Facebook แล้วเลือก "วาง" แคปชัน' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวางด้วย', 7000);
+        toast(capOk ? 'อย่าลืม: วางแคปชันในช่องข้อความ แล้วโพสต์เสร็จค่อยกด "คัดลอกคอมเมนต์"' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวาง แล้วตามด้วยคอมเมนต์', 7000);
       } catch (e) {
         if (e?.name !== 'AbortError') { toast('แชร์ไม่สำเร็จ ลองกด "บันทึกภาพ" แล้วโพสต์จากแอป Facebook แทน', 6000); }
       }
@@ -364,6 +374,12 @@ label { font-size: 15px; color: var(--muted); }
     }
   });
   $('copyCap').addEventListener('click', () => copyCaption(false));
+  $('copyComment').addEventListener('click', async () => {
+    const t = Duang.formatCaption($('comment').value);
+    if (!t) { toast('ยังไม่มีข้อความคอมเมนต์ ทำขั้นที่ 1 และ 2 ก่อน', 5000); return; }
+    try { await navigator.clipboard.writeText(t); toast('คัดลอกคอมเมนต์แล้ว ไปที่โพสต์ กดแสดงความคิดเห็น แล้วกดค้างเพื่อวาง', 7000); }
+    catch { toast('คัดลอกไม่สำเร็จ เปิด "ดูหรือแก้คอมเมนต์" แล้วกดค้างเพื่อคัดลอกเอง'); }
+  });
 
   // ---------- optional: post straight to the Page through the Graph API ----------
   // Facebook does not let shared images carry a pre-filled caption, so this is the only one-tap path.
@@ -399,7 +415,7 @@ label { font-size: 15px; color: var(--muted); }
     } catch { fbStatus('err', 'เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่'); }
   });
   let confirmTimer = null;
-  const POST_LABEL = 'โพสต์ลงเพจเลย (ภาพ + แคปชัน)';
+  const POST_LABEL = 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
   $('postBtn').addEventListener('click', async () => {
     if (!current) return;
     if (isSample) { toast('นี่เป็นภาพตัวอย่าง ทำขั้นที่ 1 และ 2 ก่อน', 5000); return; }
@@ -422,7 +438,16 @@ label { font-size: 15px; color: var(--muted); }
       const res = await fetch(`${GRAPH}/${encodeURIComponent(id)}/photos`, { method: 'POST', body: form });
       if (!res.ok) { toast('โพสต์ไม่สำเร็จ: ' + await fbError(res) + ' ใช้ปุ่มแชร์ด้านล่างแทนได้', 9000); return; }
       remember();
-      toast('โพสต์ลงเพจเรียบร้อยแล้ว', 6000);
+      const photo = await res.json().catch(() => ({}));
+      const comment = Duang.formatCaption($('comment').value);
+      if (!comment) { toast('โพสต์ลงเพจเรียบร้อยแล้ว (ไม่มีคอมเมนต์ให้ใส่)', 6000); return; }
+      btn.textContent = 'กำลังใส่คอมเมนต์…';
+      const cform = new FormData();
+      cform.append('message', comment);
+      cform.append('access_token', token);
+      const cres = await fetch(`${GRAPH}/${encodeURIComponent(photo.post_id || photo.id)}/comments`, { method: 'POST', body: cform }).catch(() => null);
+      if (cres?.ok) toast('โพสต์ลงเพจพร้อมคอมเมนต์คำทำนายฉบับเต็มเรียบร้อยแล้ว', 6000);
+      else toast('โพสต์แล้ว แต่ใส่คอมเมนต์ไม่สำเร็จ กด "คัดลอกคอมเมนต์" แล้วไปวางใต้โพสต์เองนะคะ', 9000);
     } catch {
       toast('โพสต์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่ หรือใช้ปุ่มแชร์ด้านล่าง', 8000);
     } finally {
@@ -450,9 +475,11 @@ label { font-size: 15px; color: var(--muted); }
   $('specDesign').addEventListener('click', () => { overrides = {}; Duang.DIMS.forEach(d => overrides[d.key] = d.spec); syncSelects(); render(); });
   $('autoDesign').addEventListener('click', () => { overrides = {}; syncSelects(); render(); });
   $('loadSample').addEventListener('click', () => {
-    data = SAMPLE; isSample = true; $('caption').value = SAMPLE_CAPTION; store.set('current', null);
+    data = SAMPLE; isSample = true; $('caption').value = SAMPLE_CAPTION; $('comment').value = SAMPLE_COMMENT; store.set('current', null);
     $('s2').classList.remove('done'); $('parseMsgs').innerHTML = ''; onCaption(); render();
   });
+  // the old default pointed to "read more"; the full reading now lives in the comments
+  if (store.get('cta', null) === 'กดอ่านต่อเพื่ออ่านคำทำนายฉบับเต็ม') store.set('cta', null);
   ['pageName', 'pageSub', 'cta'].forEach(id => {
     const v = store.get(id, null); if (v !== null) $(id).value = v;
     $(id).addEventListener('input', () => { store.set(id, $(id).value); showName(); render(); });
@@ -488,6 +515,7 @@ label { font-size: 15px; color: var(--muted); }
 
   // ---------- start ----------
   $('caption').value = saved?.caption ?? SAMPLE_CAPTION;
+  $('comment').value = saved ? (saved.comment || '') : SAMPLE_COMMENT;
   if (saved) { $('s2').classList.add('done'); showMsgs($('parseMsgs'), [['ok', `ล่าสุด: ดวงวัน${String(data.dayTitle || '').replace(/^วัน/, '')} ${data.date || ''}`]]); }
   buildDays(); buildVariantControls(); showName(); onCaption();
   setAvatar(store.get('avatar', null));
