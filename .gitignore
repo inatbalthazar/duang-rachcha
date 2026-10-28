@@ -1,0 +1,6 @@
+.vercel/
+.env*
+.claude/
+__pycache__/
+mascot-src/check.png
+mascot-src/peek.png

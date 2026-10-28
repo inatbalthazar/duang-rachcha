@@ -1,0 +1,886 @@
+<meta charset="utf-8">
+<title>สตูดิโอดูดวงรายวัน</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chonburi&family=Kanit:wght@400;500;600&display=swap">
+<style>
+/* Layout: tool panel on the left, live 1080×1350 preview on the right; stacks on phones. Single dark world matching the post. */
+:root {
+  --ink: #0D0F22;
+  --panel: #171A38;
+  --field: #10122A;
+  --line: rgba(185, 189, 224, .16);
+  --gold: #E8C268;
+  --text: #ECEBF7;
+  --muted: #B9BDE0;
+  --warn: #F29440;
+  --ok: #5CC48A;
+  --display: "Chonburi", "Kanit", serif;
+  --body: "Kanit", "Leelawadee UI", "Tahoma", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ink); color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+header.top h1 { font-family: var(--display); font-weight: 400; font-size: 28px; margin: 0; color: var(--gold); text-wrap: balance; }
+header.top p { margin: 0; color: var(--muted); font-size: 14px; }
+.grid { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
+.section { display: flex; flex-direction: column; gap: 10px; }
+.section + .section { border-top: 1px solid var(--line); padding-top: 16px; }
+label { font-size: 13px; color: var(--muted); }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+textarea, input[type="text"], input[type="date"], select {
+  width: 100%; background: var(--field); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+  font-family: var(--body); font-size: 14px; padding: 9px 11px;
+}
+textarea { min-height: 220px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; line-height: 1.5; }
+textarea:focus, input:focus, select:focus, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row > * { min-width: 0; }
+button {
+  font-family: var(--body); font-size: 14px; font-weight: 500; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+  border: 1px solid var(--gold); background: transparent; color: var(--gold);
+}
+button.primary { background: var(--gold); color: #12142B; }
+button:hover { filter: brightness(1.1); }
+button:disabled { opacity: .5; cursor: default; }
+.variants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 420px) { .variants { grid-template-columns: minmax(0, 1fr); } }
+.variants div { display: flex; flex-direction: column; gap: 4px; }
+.msgs { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin: 0; padding: 0; list-style: none; }
+.msgs li.err { color: #FF8A8A; }
+.msgs li.warn { color: var(--warn); }
+.msgs li.ok { color: var(--ok); }
+.avatar-row { display: flex; gap: 12px; align-items: center; }
+.avatar-row img, .avatar-row .ph { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--gold); object-fit: cover; flex: none; }
+.avatar-row .ph { display: grid; place-items: center; color: var(--gold); font-family: var(--display); }
+.preview { position: sticky; top: env(safe-area-inset-top, 0px); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.preview .frame { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; justify-content: center; }
+.preview img { display: block; width: 100%; max-width: 560px; aspect-ratio: 4 / 5; height: auto; border-radius: 6px; background: #12142B; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.4em; margin: 0; }
+details { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+details summary { cursor: pointer; color: var(--text); font-weight: 500; }
+details[open] summary { margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>สตูดิโอดูดวงรายวัน</h1>
+    <p>วาง JSON ดวงประจำวัน แล้วกดดาวน์โหลดภาพ 1080×1350 สำหรับโพสต์</p>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="section">
+        <h2>1. ข้อมูลดวงวันนี้</h2>
+        <details>
+          <summary>ให้ Claude เขียนดวงให้ (คัดลอก prompt)</summary>
+          <div class="section">
+            <label for="promptDate">วันที่จะโพสต์</label>
+            <input type="date" id="promptDate">
+            <textarea id="promptText" readonly style="min-height:160px"></textarea>
+            <div class="row"><button type="button" id="copyPrompt">คัดลอก prompt</button><span class="hint" id="promptStatus"></span></div>
+            <p class="hint">วางคำตอบของ Claude ลงช่องด้านล่างได้ทั้งก้อน ระบบจะดึงเฉพาะ JSON ออกมาเอง</p>
+          </div>
+        </details>
+        <label for="json">JSON (ตัวอย่างโหลดไว้ให้แล้ว แก้หรือวางทับได้เลย)</label>
+        <textarea id="json" spellcheck="false"></textarea>
+        <ul class="msgs" id="msgs"></ul>
+      </div>
+
+      <div class="section">
+        <h2>2. เพจ</h2>
+        <label for="pageName">ชื่อเพจ</label>
+        <input type="text" id="pageName" value="รัชฌา ปัททุม">
+        <label for="pageSub">ข้อความใต้ชื่อ</label>
+        <input type="text" id="pageSub" value="ติดตามดวงรายวันได้ทุกวัน">
+        <label for="cta">ข้อความปุ่มขวาล่าง</label>
+        <input type="text" id="cta" value="กดอ่านต่อเพื่ออ่านคำทำนายฉบับเต็ม">
+        <div class="avatar-row">
+          <div class="ph" id="avatarPh">ร</div>
+          <img id="avatarThumb" alt="รูปโปรไฟล์" hidden>
+          <div class="section" style="gap:4px">
+            <label for="avatar">รูปโปรไฟล์ (เก็บไว้ในเบราว์เซอร์นี้)</label>
+            <input type="file" id="avatar" accept="image/*">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>3. ดีไซน์</h2>
+        <p class="hint">ค่า "สุ่มตามวัน" เปลี่ยนหน้าตาไปตามวันที่ในข้อมูล และจะไม่ซ้ำกับชุดที่ดาวน์โหลดไปใน 14 วันล่าสุด ล็อกบางส่วนไว้ได้</p>
+        <div class="row">
+          <button type="button" id="reroll">สุ่มดีไซน์ใหม่</button>
+          <button type="button" id="specDesign">ใช้แบบต้นแบบ</button>
+          <button type="button" id="autoDesign">กลับเป็นสุ่มทั้งหมด</button>
+        </div>
+        <div class="variants" id="variants"></div>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="section">
+        <h2>4. แคปชัน</h2>
+        <p class="hint">ถ้าวางคำตอบของ Claude ทั้งก้อนในช่อง JSON แคปชันจะมาอยู่ที่นี่เอง แก้ต่อได้ ระบบจะตรวจคำที่ Facebook มักลดการมองเห็นหรือผิดกฎ</p>
+        <textarea id="caption" spellcheck="false" style="font-family:var(--body);font-size:14px;min-height:200px"></textarea>
+        <ul class="msgs" id="capMsgs"></ul>
+        <label>คนจะเห็นส่วนนี้ก่อนกด "ดูเพิ่มเติม"</label>
+        <div id="capPreview" style="white-space:pre-wrap;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px"></div>
+        <div class="row"><button type="button" id="copyCaption">คัดลอกแคปชัน</button><span class="hint" id="capStatus"></span></div>
+      </div>
+    </div>
+
+    <div class="preview">
+      <div class="frame"><img id="out" alt="ภาพดูดวงรายวันที่สร้างแล้ว"></div>
+      <div class="row">
+        <button type="button" class="primary" id="download">ดาวน์โหลด PNG</button>
+        <button type="button" id="copyImg">คัดลอกภาพ</button>
+      </div>
+      <p class="status" id="status">กำลังโหลดฟอนต์…</p>
+    </div>
+  </div>
+</div>
+
+<canvas id="cv" width="1080" height="1350" hidden></canvas>
+
+<script>
+(() => {
+  const W = 1080, H = 1350, P = 56;
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('duang.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('duang.' + k, JSON.stringify(v)); } catch {} }
+  };
+
+  // ---------- palette & variants ----------
+  const DAY_COLORS = { 'จันทร์': '#F5C842', 'อังคาร': '#F28BB0', 'พุธ': '#5CC48A', 'พฤหัส': '#F29440', 'พฤหัสบดี': '#F29440', 'ศุกร์': '#6EC1F0' };
+  const DAY_ORDER = ['#F5C842', '#F28BB0', '#5CC48A', '#F29440', '#6EC1F0'];
+  const GOLD = '#E8C268', SUB = '#B9BDE0', NAVY = '#161937';
+  const THEMES = {
+    midnight: { bg: '#12142B', card: '#1D2044', glow: ['#3A3F92', '#5B3C86'] },
+    indigo:   { bg: '#14112F', card: '#221E4C', glow: ['#4A3A9A', '#2F4C9A'] },
+    deepsea:  { bg: '#0E1729', card: '#182844', glow: ['#1F5A86', '#2E3F8E'] },
+    plum:     { bg: '#191029', card: '#2A1B42', glow: ['#6A2F7E', '#3B3C8C'] }
+  };
+  const DIMS = [
+    { key: 'theme', label: 'โทนพื้นหลัง', spec: 'midnight', pool: ['midnight', 'midnight', 'midnight', 'indigo', 'deepsea', 'plum'],
+      names: { midnight: 'กลางคืน (ต้นแบบ)', indigo: 'คราม', deepsea: 'ทะเลลึก', plum: 'ม่วงพลัม' } },
+    { key: 'bg', label: 'ลายพื้นหลัง', spec: 'stars', pool: ['stars', 'nebula', 'orbits', 'constellation', 'milky'],
+      names: { stars: 'ดาวกระจาย (ต้นแบบ)', nebula: 'เนบิวลา', orbits: 'วงโคจร', constellation: 'กลุ่มดาว', milky: 'ทางช้างเผือก' } },
+    { key: 'icon', label: 'ไอคอนหัว', spec: 'crescent', pool: ['crescent', 'crescent', 'planet', 'fullmoon', 'sparkles'],
+      names: { crescent: 'จันทร์เสี้ยว (ต้นแบบ)', planet: 'ดาวเคราะห์', fullmoon: 'จันทร์เต็มดวง', sparkles: 'ประกายดาว' } },
+    { key: 'badge', label: 'ป้ายหัว', spec: 'outline', pool: ['outline', 'soft', 'sparkle'],
+      names: { outline: 'กรอบทอง (ต้นแบบ)', soft: 'พื้นทองจาง', sparkle: 'กรอบ + ประกาย' } },
+    { key: 'chip', label: 'แถบวันเกิด', spec: 'full', pool: ['full', 'full', 'inset', 'slant'],
+      names: { full: 'เต็มแถบ (ต้นแบบ)', inset: 'ป้ายลอย', slant: 'ตัดเฉียง' } },
+    { key: 'card', label: 'การ์ด', spec: 'plain', pool: ['plain', 'outline', 'glow'],
+      names: { plain: 'เรียบ (ต้นแบบ)', outline: 'ขอบสีวัน', glow: 'ไล่สีวัน' } },
+    { key: 'rating', label: 'คะแนน', spec: 'dot', pool: ['dot', 'dot', 'star', 'diamond', 'bar'],
+      names: { dot: 'จุด (ต้นแบบ)', star: 'ดาว', diamond: 'เพชร', bar: 'แท่ง' } },
+    { key: 'ratingColor', label: 'สีคะแนน', spec: 'gold', pool: ['gold', 'gold', 'day'],
+      names: { gold: 'ทอง (ต้นแบบ)', day: 'สีประจำวัน' } },
+    { key: 'cta', label: 'ปุ่มอ่านต่อ', spec: 'pill', pool: ['pill', 'filled', 'text'],
+      names: { pill: 'กรอบทอง (ต้นแบบ)', filled: 'ปุ่มทอง', text: 'ตัวอักษร + ลูกศร' } }
+  ];
+
+  // ---------- seeded random ----------
+  function hash(str) {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    return h1 >>> 0;
+  }
+  function rngFrom(seed) {
+    let a = hash(seed);
+    return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+  const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+
+  // ---------- state ----------
+  const SAMPLE = {
+    date: '28 ตุลาคม 2569',
+    dayTitle: 'พุธ',
+    days: [
+      { day: 'จันทร์', headline: 'งานเดินหน้า มีคนช่วยหนุน', work: 5, money: 3, love: 4, luckyNumber: '15', luckyColorName: 'ชมพู', luckyColorHex: '#F28BB0' },
+      { day: 'อังคาร', headline: 'ระวังคำพูด เงินเข้าไม่คาด', work: 3, money: 5, love: 2, luckyNumber: '28', luckyColorName: 'เขียว', luckyColorHex: '#5CC48A' },
+      { day: 'พุธ', headline: 'ความรักสดใส ได้ข่าวดี', work: 4, money: 3, love: 5, luckyNumber: '9', luckyColorName: 'ฟ้า', luckyColorHex: '#6EC1F0' },
+      { day: 'พฤหัส', headline: 'เหนื่อยหน่อยแต่คุ้มค่า', work: 4, money: 4, love: 3, luckyNumber: '36', luckyColorName: 'ม่วง', luckyColorHex: '#9B7BE0' },
+      { day: 'ศุกร์', headline: 'โชคลาภเด่น ลองเสี่ยงได้', work: 3, money: 5, love: 4, luckyNumber: '7', luckyColorName: 'ทอง', luckyColorHex: '#E8C268' }
+    ]
+  };
+  const SAMPLE_CAPTION =
+`ดวงวันพุธที่ 28 ตุลาคม 2569 มาแล้ว
+วันนี้ใครเด่นเรื่องไหน อ่านของวันเกิดตัวเองได้เลย
+
+🟡 คนเกิดวันจันทร์
+งาน: มีคนพร้อมช่วยหนุน งานค้างเดินหน้าได้
+เงิน: รายรับทรงตัว ใช้จ่ายตามแผน
+ความรัก: คุยกันเข้าใจง่ายขึ้น
+เลขมงคล 15 · สีมงคล ชมพู
+
+🩷 คนเกิดวันอังคาร
+งาน: พูดน้อยลงหน่อย งานจะราบรื่น
+เงิน: มีเงินเข้าแบบไม่คาดคิด
+ความรัก: ใจเย็นกับคนใกล้ตัว
+เลขมงคล 28 · สีมงคล เขียว
+
+🟢 คนเกิดวันพุธ
+งาน: ได้คำชมจากงานที่ตั้งใจทำ
+เงิน: พอดีๆ ไม่ขาดไม่เกิน
+ความรัก: มีข่าวดี บรรยากาศสดใส
+เลขมงคล 9 · สีมงคล ฟ้า
+
+🟠 คนเกิดวันพฤหัส
+งาน: งานเยอะหน่อย แต่ผลออกมาคุ้ม
+เงิน: เก็บออมได้ดี
+ความรัก: หาเวลาพักด้วยกันบ้าง
+เลขมงคล 36 · สีมงคล ม่วง
+
+🔵 คนเกิดวันศุกร์
+งาน: ลองเสนอไอเดียใหม่ได้
+เงิน: โชคเรื่องเงินเด่นกว่าทุกวัน
+ความรัก: มีคนแอบส่งใจให้
+เลขมงคล 7 · สีมงคล ทอง
+
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
+ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกวัน
+
+#ดูดวงรายวัน #ดวงวันนี้ #ดวงรายวัน #รัชฌาปัททุม`;
+  let data = SAMPLE;
+  let reroll = 0;
+  let overrides = store.get('overrides', {});
+  let avatarImg = null;
+  let current = null; // { blob, url, key, filename }
+  let fontsOk = true;
+
+  // ---------- text helpers ----------
+  const F = {
+    display: s => `400 ${s}px Chonburi, Kanit, serif`,
+    k4: s => `400 ${s}px Kanit, Tahoma, sans-serif`,
+    k5: s => `500 ${s}px Kanit, Tahoma, sans-serif`,
+    k6: s => `600 ${s}px Kanit, Tahoma, sans-serif`
+  };
+  function fit(ctx, text, font, size, maxW, min = Math.round(size * 0.55)) {
+    let s = size;
+    ctx.font = font(s);
+    while (s > min && ctx.measureText(text).width > maxW) { s -= 1; ctx.font = font(s); }
+    return s;
+  }
+  function text(ctx, str, x, y, font, size, color, align = 'left', maxW = 9999) {
+    fit(ctx, str, font, size, maxW);
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(str, x, y);
+    return ctx.measureText(str).width;
+  }
+  const thaiLen = s => String(s).replace(/[ัิ-ฺ็-๎]/g, '').length;
+  function rgba(hex, a) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) return `rgba(232,194,104,${a})`;
+    const n = parseInt(m[1], 16);
+    return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+  }
+  const validHex = h => /^#?[0-9a-f]{6}$/i.test(String(h || '').trim());
+  const hexOf = h => { const s = String(h).trim(); return s.startsWith('#') ? s : '#' + s; };
+
+  // ---------- shapes ----------
+  function rr(ctx, x, y, w, h, r) {
+    const R = typeof r === 'number' ? [r, r, r, r] : r;
+    ctx.beginPath();
+    ctx.moveTo(x + R[0], y);
+    ctx.lineTo(x + w - R[1], y); ctx.arcTo(x + w, y, x + w, y + R[1], R[1]);
+    ctx.lineTo(x + w, y + h - R[2]); ctx.arcTo(x + w, y + h, x + w - R[2], y + h, R[2]);
+    ctx.lineTo(x + R[3], y + h); ctx.arcTo(x, y + h, x, y + h - R[3], R[3]);
+    ctx.lineTo(x, y + R[0]); ctx.arcTo(x, y, x + R[0], y, R[0]);
+    ctx.closePath();
+  }
+  function sparkle(ctx, x, y, s) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - s);
+    ctx.quadraticCurveTo(x, y, x + s, y);
+    ctx.quadraticCurveTo(x, y, x, y + s);
+    ctx.quadraticCurveTo(x, y, x - s, y);
+    ctx.quadraticCurveTo(x, y, x, y - s);
+    ctx.closePath();
+  }
+  function starPath(ctx, cx, cy, ro, ri) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? ri : ro, a = -Math.PI / 2 + i * Math.PI / 5;
+      ctx[i ? 'lineTo' : 'moveTo'](cx + r * Math.cos(a), cy + r * Math.sin(a));
+    }
+    ctx.closePath();
+  }
+  function crescentPath(ctx, cx, cy, R, ox, oy, r) {
+    const d = Math.hypot(ox, oy), phi = Math.atan2(oy, ox);
+    const a = Math.acos(Math.max(-1, Math.min(1, (R * R + d * d - r * r) / (2 * R * d))));
+    const pm = { x: cx + R * Math.cos(phi - a), y: cy + R * Math.sin(phi - a) };
+    const pp = { x: cx + R * Math.cos(phi + a), y: cy + R * Math.sin(phi + a) };
+    const b1 = Math.atan2(pm.y - cy - oy, pm.x - cx - ox), b2 = Math.atan2(pp.y - cy - oy, pp.x - cx - ox);
+    const norm = t => ((t % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const passesCw = norm(phi + Math.PI - b1) < norm(b2 - b1);
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, phi + a, phi - a + 2 * Math.PI, false);
+    ctx.arc(cx + ox, cy + oy, r, b1, b2, !passesCw);
+    ctx.closePath();
+  }
+
+  // ---------- drawing ----------
+  function drawBackground(ctx, v, rng, T) {
+    ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
+    if (v.bg === 'nebula') {
+      for (let i = 0; i < 3; i++) {
+        const x = rng() * W, y = i === 0 ? rng() * 260 : rng() * H, r = 360 + rng() * 300;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, rgba(T.glow[i % 2], 0.42)); g.addColorStop(1, rgba(T.glow[i % 2], 0));
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+    } else {
+      const g = ctx.createRadialGradient(W * (0.55 + rng() * 0.4), 40, 0, W * 0.8, 40, 620);
+      g.addColorStop(0, rgba(T.glow[0], 0.28)); g.addColorStop(1, rgba(T.glow[0], 0));
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    if (v.bg === 'orbits') {
+      const corners = [[W * 0.86, -30], [-80, H * 0.52], [W + 60, H * 0.7], [W * 0.15, -120]];
+      const [ox, oy] = pick(rng, corners);
+      ctx.lineWidth = 1.5;
+      for (let r = 170; r < 1500; r += 105 + rng() * 30) {
+        ctx.strokeStyle = rgba(GOLD, 0.07); ctx.beginPath(); ctx.arc(ox, oy, r, 0, Math.PI * 2); ctx.stroke();
+        const a = rng() * Math.PI * 2;
+        ctx.fillStyle = rgba(GOLD, 0.35); ctx.beginPath(); ctx.arc(ox + r * Math.cos(a), oy + r * Math.sin(a), 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (v.bg === 'milky') {
+      const x0 = -100, y0 = 300 + rng() * 120, x1 = W + 100, y1 = -60 + rng() * 80;
+      for (let i = 0; i < 520; i++) {
+        const t = rng(), off = (rng() + rng() + rng() - 1.5) * 90;
+        const nx = -(y1 - y0), ny = x1 - x0, nl = Math.hypot(nx, ny);
+        const x = x0 + (x1 - x0) * t + nx / nl * off, y = y0 + (y1 - y0) * t + ny / nl * off;
+        ctx.fillStyle = `rgba(255,255,255,${0.08 + rng() * 0.35})`;
+        ctx.beginPath(); ctx.arc(x, y, 0.5 + rng() * 1.1, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // scattered stars — every layout gets its own field
+    const n = 90 + Math.floor(rng() * 70);
+    for (let i = 0; i < n; i++) {
+      const x = rng() * W, y = rng() * H, gold = rng() < 0.2;
+      ctx.fillStyle = gold ? rgba(GOLD, 0.25 + rng() * 0.45) : `rgba(255,255,255,${0.12 + rng() * 0.45})`;
+      ctx.beginPath(); ctx.arc(x, y, 0.5 + rng() * 1.4, 0, Math.PI * 2); ctx.fill();
+    }
+    for (let i = 0; i < 4 + Math.floor(rng() * 4); i++) {
+      ctx.fillStyle = rgba(GOLD, 0.25 + rng() * 0.3);
+      sparkle(ctx, rng() * W, rng() < 0.6 ? rng() * 300 : 1180 + rng() * 160, 4 + rng() * 6); ctx.fill();
+    }
+    if (v.bg === 'constellation') {
+      const pts = [];
+      const bx = 470 + rng() * 120, by = 40;
+      for (let i = 0; i < 6; i++) pts.push([bx + rng() * 300, by + rng() * 230]);
+      pts.sort((a, b) => a[0] - b[0]);
+      ctx.strokeStyle = rgba(GOLD, 0.2); ctx.lineWidth = 1.5;
+      ctx.beginPath(); pts.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](p[0], p[1])); ctx.stroke();
+      pts.forEach(p => { ctx.fillStyle = rgba(GOLD, 0.6); ctx.beginPath(); ctx.arc(p[0], p[1], 3.5, 0, Math.PI * 2); ctx.fill(); });
+    }
+  }
+
+  function drawIcon(ctx, v, rng, T) {
+    const cx = W - P - 82, cy = 152;
+    ctx.save();
+    ctx.strokeStyle = GOLD; ctx.fillStyle = GOLD; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (v.icon === 'crescent') {
+      crescentPath(ctx, cx - 6, cy + 4, 62, 26, -20, 52); ctx.stroke();
+      ctx.lineWidth = 2.5;
+      sparkle(ctx, cx + 46, cy - 46, 18); ctx.stroke();
+      sparkle(ctx, cx + 58, cy + 14, 9); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx + 24, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (v.icon === 'planet') {
+      ctx.save(); ctx.translate(cx, cy + 4); ctx.rotate(-0.38);
+      ctx.beginPath(); ctx.ellipse(0, 0, 78, 22, 0, Math.PI, Math.PI * 2); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = T.bg; ctx.beginPath(); ctx.arc(cx, cy + 4, 42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.translate(cx, cy + 4); ctx.rotate(-0.38);
+      ctx.beginPath(); ctx.ellipse(0, 0, 78, 22, 0, 0, Math.PI); ctx.stroke(); ctx.restore();
+      ctx.lineWidth = 2.5; sparkle(ctx, cx - 62, cy - 52, 14); ctx.stroke();
+      ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(cx + 66, cy - 50, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (v.icon === 'fullmoon') {
+      ctx.beginPath(); ctx.arc(cx, cy, 54, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+      [[-16, -14, 11], [18, 8, 8], [-6, 24, 6], [22, -22, 5]].forEach(([x, y, r]) => { ctx.beginPath(); ctx.arc(cx + x, cy + y, r, 0, Math.PI * 2); ctx.stroke(); });
+      ctx.globalAlpha = 1; ctx.setLineDash([3, 9]); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 78, Math.PI * 0.9, Math.PI * 2.1); ctx.stroke(); ctx.setLineDash([]);
+      ctx.lineWidth = 2.5; sparkle(ctx, cx + 70, cy - 58, 12); ctx.stroke();
+    } else {
+      ctx.lineWidth = 3; sparkle(ctx, cx - 6, cy + 4, 46); ctx.stroke();
+      ctx.lineWidth = 2.5; sparkle(ctx, cx + 50, cy - 44, 18); ctx.stroke();
+      sparkle(ctx, cx - 58, cy - 46, 11); ctx.stroke();
+      sparkle(ctx, cx + 48, cy + 48, 9); ctx.stroke();
+      [[cx - 52, cy + 40], [cx + 18, cy - 70], [cx + 70, cy + 6]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); });
+    }
+    ctx.restore();
+  }
+
+  function drawHeader(ctx, v, rng, T, d) {
+    // badge
+    const badge = 'ดูดวงรายวัน';
+    ctx.font = F.k5(26);
+    const bw = ctx.measureText(badge).width + 48 + (v.badge === 'sparkle' ? 44 : 0), bh = 50, by = P;
+    rr(ctx, P, by, bw, bh, bh / 2);
+    if (v.badge === 'soft') { ctx.fillStyle = rgba(GOLD, 0.16); ctx.fill(); }
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke();
+    let tx = P + 24;
+    if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, P + 30, by + bh / 2, 8); ctx.fill(); tx += 22; }
+    text(ctx, badge, tx, by + 34, F.k5, 26, GOLD);
+    if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, P + bw - 30, by + bh / 2, 8); ctx.fill(); }
+
+    // title
+    const dayTitle = String(d.dayTitle || '').replace(/^วัน/, '');
+    text(ctx, 'ดวงวัน' + dayTitle, P - 2, 222, F.display, 92, '#FFFFFF', 'left', W - P * 2 - 200);
+
+    // subtitle
+    const date = String(d.date || '').trim();
+    const when = /^\d/.test(date) ? 'ที่ ' + date : date;
+    text(ctx, `คนเกิดวันจันทร์ – ศุกร์ · ประจำวัน${when}`, P, 290, F.k4, 30, SUB, 'left', W - P * 2);
+
+    drawIcon(ctx, v, rng, T);
+  }
+
+  function ratingMark(ctx, shape, x, cy, s, on, cOn, cOff) {
+    ctx.fillStyle = on ? cOn : cOff;
+    if (shape === 'dot') { ctx.beginPath(); ctx.arc(x + s / 2, cy, s / 2, 0, Math.PI * 2); ctx.fill(); }
+    else if (shape === 'star') { starPath(ctx, x + s / 2, cy, s * 0.74, s * 0.32); ctx.fill(); }
+    else if (shape === 'diamond') {
+      ctx.beginPath(); ctx.moveTo(x + s / 2, cy - s * 0.6); ctx.lineTo(x + s, cy); ctx.lineTo(x + s / 2, cy + s * 0.6); ctx.lineTo(x, cy); ctx.closePath(); ctx.fill();
+    } else { rr(ctx, x, cy - 5, s, 10, 5); ctx.fill(); }
+  }
+
+  function drawRow(ctx, v, T, item, i, y, h) {
+    const x = P, w = W - P * 2;
+    const dayName = String(item.day || '').trim();
+    const dc = DAY_COLORS[dayName] || DAY_ORDER[i % 5];
+
+    // card
+    rr(ctx, x, y, w, h, 24); ctx.fillStyle = T.card; ctx.fill();
+    if (v.card === 'glow') {
+      ctx.save(); rr(ctx, x, y, w, h, 24); ctx.clip();
+      const g = ctx.createLinearGradient(x, 0, x + w * 0.7, 0);
+      g.addColorStop(0, rgba(dc, 0.18)); g.addColorStop(1, rgba(dc, 0));
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore();
+    }
+    if (v.card === 'outline') { rr(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, 24); ctx.strokeStyle = rgba(dc, 0.45); ctx.lineWidth = 1.5; ctx.stroke(); }
+
+    // day chip
+    let chipCx = x + 105;
+    ctx.save();
+    if (v.chip === 'inset') {
+      rr(ctx, x + 12, y + 12, 186, h - 24, 18); ctx.fillStyle = dc; ctx.fill();
+    } else {
+      rr(ctx, x, y, w, h, 24); ctx.clip(); ctx.fillStyle = dc; ctx.beginPath();
+      if (v.chip === 'slant') { ctx.moveTo(x, y); ctx.lineTo(x + 228, y); ctx.lineTo(x + 192, y + h); ctx.lineTo(x, y + h); chipCx = x + 102; }
+      else { ctx.rect(x, y, 210, h); }
+      ctx.fill();
+    }
+    ctx.restore();
+    const cy = y + h / 2;
+    text(ctx, 'เกิดวัน', chipCx, cy - 16, F.k5, 24, NAVY, 'center', 170);
+    text(ctx, dayName, chipCx, cy + 40, F.display, 46, NAVY, 'center', 176);
+
+    // middle
+    const mx = x + 240, mw = 548;
+    text(ctx, String(item.headline || ''), mx, y + 70, F.k5, 36, '#FFFFFF', 'left', mw);
+
+    const groups = [['งาน', item.work], ['เงิน', item.money], ['ความรัก', item.love]];
+    let ls = 23, s = v.rating === 'bar' ? 18 : 14, gap = v.rating === 'bar' ? 5 : 7;
+    const layout = () => {
+      ctx.font = F.k4(ls);
+      const lw = groups.map(g => ctx.measureText(g[0]).width);
+      const markW = 5 * s + 4 * gap;
+      const inner = lw.reduce((a, b) => a + b, 0) + 3 * (10 + markW);
+      return { lw, markW, inner };
+    };
+    let L = layout();
+    while (L.inner + 2 * 16 > mw && ls > 17) { ls -= 1; s = Math.max(10, s - 0.5); L = layout(); }
+    const ggap = Math.min(40, (mw - L.inner) / 2);
+    const ry = y + h - 40;
+    const cOn = v.ratingColor === 'day' ? dc : GOLD, cOff = rgba(SUB, 0.22);
+    let gx = mx;
+    groups.forEach((g, gi) => {
+      text(ctx, g[0], gx, ry + ls * 0.36, F.k4, ls, SUB);
+      let px = gx + L.lw[gi] + 10;
+      const val = Math.max(0, Math.min(5, Math.round(Number(g[1]) || 0)));
+      for (let k = 0; k < 5; k++) { ratingMark(ctx, v.rating, px, ry, s, k < val, cOn, cOff); px += s + gap; }
+      gx += L.lw[gi] + 10 + L.markW + ggap;
+    });
+
+    // divider + lucky column
+    ctx.strokeStyle = rgba(SUB, 0.16); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 808, y + 26); ctx.lineTo(x + 808, y + h - 26); ctx.stroke();
+    const rc = x + 888;
+    text(ctx, 'เลขมงคล', rc, y + 42, F.k4, 20, SUB, 'center', 140);
+    text(ctx, String(item.luckyNumber ?? ''), rc, y + 102, F.display, 54, GOLD, 'center', 140);
+    const cname = String(item.luckyColorName || '');
+    ctx.font = F.k4(20);
+    let cs = fit(ctx, cname, F.k4, 20, 112);
+    const cw = ctx.measureText(cname).width, dotR = 9, tot = dotR * 2 + 8 + cw;
+    const sx = rc - tot / 2, ccy = y + h - 26;
+    ctx.fillStyle = validHex(item.luckyColorHex) ? hexOf(item.luckyColorHex) : GOLD;
+    ctx.beginPath(); ctx.arc(sx + dotR, ccy - 7, dotR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+    text(ctx, cname, sx + dotR * 2 + 8, ccy, F.k4, cs, SUB);
+  }
+
+  function drawFooter(ctx, v, T) {
+    const cy = H - P - 36, ax = P + 36;
+    ctx.save(); ctx.beginPath(); ctx.arc(ax, cy, 34, 0, Math.PI * 2); ctx.clip();
+    if (avatarImg) {
+      const iw = avatarImg.naturalWidth || avatarImg.width, ih = avatarImg.naturalHeight || avatarImg.height;
+      const sc = 68 / Math.min(iw, ih);
+      ctx.drawImage(avatarImg, ax - iw * sc / 2, cy - ih * sc / 2, iw * sc, ih * sc);
+    } else {
+      ctx.fillStyle = T.card; ctx.fillRect(ax - 36, cy - 36, 72, 72);
+      const name = $('pageName').value.trim();
+      text(ctx, name ? [...name][0] : '✦', ax, cy + 14, F.display, 36, GOLD, 'center');
+    }
+    ctx.restore();
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, cy, 35.5, 0, Math.PI * 2); ctx.stroke();
+
+    const tx = P + 72 + 18;
+    // CTA first, so the name block can use what is left
+    const cta = $('cta').value.trim();
+    let ctaLeft = W - P;
+    if (cta) {
+      let fs = fit(ctx, cta, F.k5, 24, 470);
+      const tw = ctx.measureText(cta).width;
+      const arrowW = 26;
+      if (v.cta === 'text') {
+        const x0 = W - P - tw - arrowW - 10;
+        text(ctx, cta, x0, cy + 8, F.k5, fs, GOLD);
+        ctx.strokeStyle = rgba(GOLD, 0.6); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x0, cy + 22); ctx.lineTo(x0 + tw, cy + 22); ctx.stroke();
+        drawArrow(ctx, W - P - arrowW, cy, arrowW, GOLD);
+        ctaLeft = x0;
+      } else {
+        const bw = tw + 48 + arrowW + 10, bh = 58, bx = W - P - bw;
+        rr(ctx, bx, cy - bh / 2, bw, bh, bh / 2);
+        if (v.cta === 'filled') { ctx.fillStyle = GOLD; ctx.fill(); }
+        else { ctx.fillStyle = rgba(GOLD, 0.08); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); }
+        const col = v.cta === 'filled' ? NAVY : GOLD;
+        text(ctx, cta, bx + 24, cy + 8, F.k5, fs, col);
+        drawArrow(ctx, bx + 24 + tw + 10, cy, arrowW, col);
+        ctaLeft = bx;
+      }
+    }
+    const nameMax = Math.max(160, ctaLeft - tx - 24);
+    text(ctx, $('pageName').value.trim(), tx, cy - 4, F.k6, 30, '#FFFFFF', 'left', nameMax);
+    text(ctx, $('pageSub').value.trim(), tx, cy + 28, F.k4, 21, SUB, 'left', nameMax);
+  }
+  function drawArrow(ctx, x, cy, w, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + w, cy); ctx.moveTo(x + w - 9, cy - 8); ctx.lineTo(x + w, cy); ctx.lineTo(x + w - 9, cy + 8); ctx.stroke();
+  }
+
+  // ---------- variant choice ----------
+  function chooseVariants(d) {
+    const history = store.get('history', []);
+    const others = history.filter(h => h.date !== d.date).map(h => h.key);
+    let v, key, seed;
+    for (let attempt = 0; attempt < 24; attempt++) {
+      seed = `${d.date}|${d.dayTitle}|${reroll}|${attempt}`;
+      const rng = rngFrom(seed);
+      v = {};
+      DIMS.forEach(dim => { const r = pick(rng, dim.pool); v[dim.key] = overrides[dim.key] || r; });
+      key = DIMS.map(dim => v[dim.key]).join('/');
+      if (!others.includes(key)) break;
+    }
+    return { v, key, seed };
+  }
+
+  // ---------- render ----------
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  let renderToken = 0;
+  async function render() {
+    const token = ++renderToken;
+    const d = data;
+    const { v, key, seed } = chooseVariants(d);
+    const rng = rngFrom(seed + '#decor');
+    const T = THEMES[v.theme];
+    ctx.clearRect(0, 0, W, H);
+    drawBackground(ctx, v, rng, T);
+    drawHeader(ctx, v, rng, T, d);
+    const top = 330, bottom = H - P - 72 - 32, gap = 14;
+    const rowH = (bottom - top - gap * 4) / 5;
+    d.days.slice(0, 5).forEach((item, i) => drawRow(ctx, v, T, item, i, top + i * (rowH + gap), rowH));
+    drawFooter(ctx, v, T);
+
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    if (token !== renderToken || !blob) return;
+    if (current?.url) URL.revokeObjectURL(current.url);
+    const safe = s => String(s || '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-');
+    current = { blob, url: URL.createObjectURL(blob), key, date: d.date, filename: `ดวงวัน${safe(String(d.dayTitle).replace(/^วัน/, ''))}-${safe(d.date)}.png` };
+    $('out').src = current.url;
+    $('chips').innerHTML = '';
+    DIMS.forEach(dim => { const s = document.createElement('span'); s.textContent = `${dim.label}: ${dim.names[v[dim.key]]}`; $('chips').appendChild(s); });
+    setStatus(fontsOk ? `พร้อมดาวน์โหลด · ${Math.round(blob.size / 1024)} KB` : 'โหลดฟอนต์ไม่สำเร็จ ภาพใช้ฟอนต์สำรองอยู่ ลองเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรช');
+  }
+  function setStatus(s) { $('status').textContent = s; }
+
+  // ---------- input parsing ----------
+  function parseInput(raw) {
+    const msgs = [];
+    let obj = null, caption = '';
+    const s = raw.trim();
+    try { obj = JSON.parse(s); }
+    catch {
+      const a = s.indexOf('{'), b = s.lastIndexOf('}');
+      if (a >= 0 && b > a) {
+        try {
+          obj = JSON.parse(s.slice(a, b + 1));
+          caption = s.slice(b + 1).replace(/^\s*```\s*/, '').replace(/^\s*(แคปชัน|caption)[^\n]*:\s*\n/i, '').trim();
+        } catch {}
+      }
+    }
+    if (obj && caption) obj.__caption = caption;
+    if (!obj) return { msgs: [['err', 'อ่าน JSON ไม่ได้ ตรวจเครื่องหมายจุลภาคและวงเล็บ หรือวางคำตอบของ Claude ทั้งก้อน']] };
+    if (!Array.isArray(obj.days) || obj.days.length < 5) return { msgs: [['err', 'ต้องมี days 5 รายการ (จันทร์ถึงศุกร์)']] };
+    if (!obj.date) msgs.push(['warn', 'ไม่มี date ภาพจะไม่มีวันที่']);
+    if (!obj.dayTitle) msgs.push(['warn', 'ไม่มี dayTitle หัวข้อจะเหลือแค่ "ดวงวัน"']);
+    if (obj.days.length > 5) msgs.push(['warn', `มี ${obj.days.length} รายการ ใช้แค่ 5 รายการแรก`]);
+    obj.days.slice(0, 5).forEach((it, i) => {
+      const n = it.day || `แถว ${i + 1}`;
+      if (thaiLen(it.headline || '') > 24) msgs.push(['warn', `${n}: คำทำนายยาว ${thaiLen(it.headline)} ตัวอักษร (เกิน 24) ตัวหนังสือจะถูกย่อลง`]);
+      ['work', 'money', 'love'].forEach(k => { const x = Number(it[k]); if (!(x >= 0 && x <= 5)) msgs.push(['warn', `${n}: ${k} ควรเป็นเลข 0–5`]); });
+      if (it.luckyColorHex && !validHex(it.luckyColorHex)) msgs.push(['warn', `${n}: รหัสสี ${it.luckyColorHex} ไม่ถูกต้อง ใช้สีทองแทน`]);
+      if (!DAY_COLORS[String(it.day || '').trim()]) msgs.push(['warn', `${n}: ไม่รู้จักชื่อวันนี้ ใช้สีตามลำดับแถวแทน`]);
+    });
+    if (!msgs.length) msgs.push(['ok', 'ข้อมูลครบ']);
+    return { obj, msgs };
+  }
+  function showMsgs(list) {
+    const ul = $('msgs'); ul.innerHTML = '';
+    list.forEach(([k, t]) => { const li = document.createElement('li'); li.className = k; li.textContent = t; ul.appendChild(li); });
+  }
+  let debounce;
+  function onJson() {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      store.set('json', $('json').value);
+      const { obj, msgs } = parseInput($('json').value);
+      showMsgs(msgs);
+      if (obj) {
+        if (obj.__caption && obj.__caption !== $('caption').value) { $('caption').value = obj.__caption; onCaption(); }
+        if (data.date !== obj.date) reroll = 0;
+        data = obj; render();
+      }
+    }, 250);
+  }
+
+  // ---------- caption checks (Facebook) ----------
+  const CAPTION_RULES = [
+    ['err', /(พิมพ์|คอมเมนต์|คอมเม้น|เมนต์|เม้น)\s*["“'”]?\s*(สาธุ|รับ|ขอ|99|๙๙|เอา)/, 'ขอให้คนพิมพ์/คอมเมนต์เพื่อรับโชค Facebook นับเป็น engagement bait และลดการมองเห็น'],
+    ['err', /(แชร์|ส่งต่อ|share)/i, 'ชวนแชร์หรือส่งต่อ (เช่น "แชร์เพื่อรับดวง") นับเป็น engagement bait'],
+    ['err', /(แท็ก|แทก|tag)/i, 'ชวนแท็กเพื่อน นับเป็น engagement bait'],
+    ['err', /กด\s*(ไลก์|ไลค์|like|ถูกใจ|หัวใจ|รีแอค|react)/i, 'ขอให้กดไลก์หรือกดรีแอคชัน นับเป็น engagement bait'],
+    ['err', /(หวย|เลขเด็ด|สลาก|ลอตเตอรี่|ล็อตเตอรี่|เลขท้าย|แทงเลข|พนัน|บาคาร่า|คาสิโน)/, 'พูดถึงหวยหรือการพนัน เสี่ยงผิดนโยบายเนื้อหาการพนันของ Facebook'],
+    ['warn', /(100\s*%|การันตี|รับประกัน|รวยแน่|ถูกแน่|ได้แน่นอน)/, 'มีคำรับประกันผล ควรเลี่ยงคำทำนายที่ฟังเหมือนสัญญาว่าจะเกิดจริง'],
+    ['warn', /(โอน|ค่าครู|ทักแชท|inbox|ราคา\s*\d|บาท)/i, 'มีเรื่องเงินหรือชวนทักแชทซื้อของ ถ้าขายของแก้ดวงต้องระวังกฎการโฆษณาและการหลอกลวง'],
+    ['warn', /(ลงทุน|หุ้น|คริปโต|crypto|เทรด|รักษา|หายป่วย|ยา\s)/i, 'มีคำแนะนำเรื่องลงทุนหรือสุขภาพ ควรเลี่ยงคำแนะนำที่เจาะจง']
+  ];
+  function checkCaption(t) {
+    const out = [];
+    if (!t.trim()) return [['warn', 'ยังไม่มีแคปชัน']];
+    CAPTION_RULES.forEach(([k, re, msg]) => { const m = t.match(re); if (m) out.push([k, `${msg} (พบ "${m[0]}")`]); });
+    const tags = t.match(/#[^\s#]+/g) || [];
+    if (tags.length > 5) out.push(['warn', `มีแฮชแท็ก ${tags.length} อัน ใช้ 3–5 อันพอ`]);
+    if (!tags.length) out.push(['warn', 'ยังไม่มีแฮชแท็ก ใส่ 3–5 อันช่วยให้ค้นเจอ']);
+    const longPara = t.split(/\n\s*\n/).filter(p => p.replace(/\s/g, '').length > 260);
+    if (longPara.length) out.push(['warn', `มี ${longPara.length} ย่อหน้าที่ยาวเกิน อ่านยากบนมือถือ แบ่งบรรทัดให้สั้นลง`]);
+    const firstLine = t.trim().split('\n')[0];
+    if (firstLine.length > 90) out.push(['warn', 'บรรทัดแรกยาวเกิน คนเห็นแค่ช่วงต้นก่อนกด "ดูเพิ่มเติม" ควรให้บรรทัดแรกสั้นและบอกว่าเป็นดวงวันไหน']);
+    if (!/(ความบันเทิง|วิจารณญาณ)/.test(t)) out.push(['warn', 'ยังไม่มีข้อความ "เพื่อความบันเทิง/โปรดใช้วิจารณญาณ" แนะนำให้ใส่ท้ายโพสต์']);
+    if (!out.some(m => m[0] !== 'ok')) out.push(['ok', 'ไม่พบคำเสี่ยงที่ระบบรู้จัก (ยังควรอ่านทวนเองก่อนโพสต์)']);
+    return out;
+  }
+  function onCaption() {
+    const t = $('caption').value;
+    store.set('caption', t);
+    const ul = $('capMsgs'); ul.innerHTML = '';
+    checkCaption(t).forEach(([k, m]) => { const li = document.createElement('li'); li.className = k; li.textContent = m; ul.appendChild(li); });
+    // Facebook shows roughly the first 3 lines / ~120 characters before "See more"
+    const lines = t.trim().split('\n').slice(0, 3).join('\n');
+    $('capPreview').textContent = (lines.length > 125 ? lines.slice(0, 125) : lines) + (t.trim().length > Math.min(lines.length, 125) ? '… ดูเพิ่มเติม' : '');
+  }
+
+  // ---------- variant controls ----------
+  function buildVariantControls() {
+    const box = $('variants');
+    DIMS.forEach(dim => {
+      const wrap = document.createElement('div');
+      const lab = document.createElement('label'); lab.htmlFor = 'v-' + dim.key; lab.textContent = dim.label;
+      const sel = document.createElement('select'); sel.id = 'v-' + dim.key;
+      sel.add(new Option('สุ่มตามวัน', ''));
+      Object.entries(dim.names).forEach(([k, n]) => sel.add(new Option(n, k)));
+      sel.value = overrides[dim.key] || '';
+      sel.addEventListener('change', () => { if (sel.value) overrides[dim.key] = sel.value; else delete overrides[dim.key]; store.set('overrides', overrides); render(); });
+      wrap.append(lab, sel); box.appendChild(wrap);
+    });
+  }
+  function syncSelects() { DIMS.forEach(dim => { $('v-' + dim.key).value = overrides[dim.key] || ''; }); store.set('overrides', overrides); }
+
+  // ---------- export ----------
+  function remember() {
+    if (!current) return;
+    const h = store.get('history', []).filter(x => x.date !== current.date);
+    h.unshift({ date: current.date, key: current.key });
+    store.set('history', h.slice(0, 14));
+  }
+  async function download() {
+    if (!current) return;
+    let dl = null;
+    try { dl = window.claude?.use ? await window.claude.use('downloads') : null; } catch { dl = null; }
+    if (dl) {
+      try { await dl.save({ filename: current.filename, data: current.blob }); remember(); setStatus('บันทึกภาพแล้ว'); }
+      catch (e) {
+        if (e?.code === 'declined') setStatus('ยกเลิกการบันทึก');
+        else if (e?.code === 'rate_limited') setStatus('มีหน้าต่างบันทึกเปิดอยู่ ลองอีกครั้งในอีกสักครู่');
+        else setStatus('บันทึกจากหน้านี้ไม่ได้ กดค้างที่ภาพ (มือถือ) หรือคลิกขวาที่ภาพ แล้วเลือกบันทึกรูปภาพ');
+      }
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = current.url; a.download = current.filename; document.body.appendChild(a); a.click(); a.remove();
+    remember();
+    setStatus('ถ้าไฟล์ไม่ถูกดาวน์โหลด ให้คลิกขวาหรือกดค้างที่ภาพแล้วเลือกบันทึกรูปภาพ');
+  }
+  async function copyImage() {
+    if (!current) return;
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': current.blob })]); remember(); setStatus('คัดลอกภาพแล้ว วางในโพสต์ Facebook ได้เลย'); }
+    catch { setStatus('เบราว์เซอร์นี้ไม่ให้คัดลอกภาพ ใช้ปุ่มดาวน์โหลดแทน'); }
+  }
+
+  // ---------- prompt helper ----------
+  function buildPrompt() {
+    const v = $('promptDate').value;
+    const dt = v ? new Date(v + 'T12:00:00') : new Date();
+    const wd = new Intl.DateTimeFormat('th-TH', { weekday: 'long' }).format(dt).replace(/^วัน/, '');
+    const ds = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }).format(dt);
+    $('promptText').value =
+`เขียนดูดวงรายวันสำหรับคนเกิดวันจันทร์ถึงศุกร์ ประจำวัน${wd}ที่ ${ds}
+
+ตอบเป็น JSON ก่อน ตามรูปแบบนี้เป๊ะๆ (ใส่ใน code block):
+{
+  "date": "${ds}",
+  "dayTitle": "${wd}",
+  "days": [
+    { "day": "จันทร์", "headline": "...", "work": 1-5, "money": 1-5, "love": 1-5, "luckyNumber": "..", "luckyColorName": "..", "luckyColorHex": "#RRGGBB" },
+    ... ให้ครบ จันทร์ อังคาร พุธ พฤหัส ศุกร์
+  ]
+}
+
+กติกา:
+- headline สั้น อ่านแล้วเข้าใจทันที ไม่เกิน 24 ตัวอักษร (ไม่นับสระบน-ล่างและวรรณยุกต์)
+- แต่ละวันใช้คำขึ้นต้นและโทนต่างกัน อย่าใช้รูปประโยคซ้ำกันทั้ง 5 แถว และอย่าซ้ำกับสำนวนที่ใช้บ่อย
+- คะแนนต้องสอดคล้องกับ headline และแต่ละวันไม่ควรได้คะแนนชุดเดียวกัน
+- luckyNumber เป็นตัวเลข 1–2 หลัก, luckyColorName ชื่อสีภาษาไทยคำเดียวสั้นๆ, luckyColorHex รหัสสีของสีนั้น
+
+หลัง JSON ให้เขียนแคปชันโพสต์ Facebook ฉบับเต็ม (ข้อความธรรมดา ไม่ต้องใส่ code block) ตามโครงนี้:
+บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็นดวงวัน${wd}ที่ ${ds} และชวนอ่าน
+บรรทัดที่ 2: ประโยคเสริมสั้นๆ อีกหนึ่งประโยค
+(เว้นหนึ่งบรรทัด)
+แล้วแยกเป็นช่วงของแต่ละวันเกิด เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้:
+🟡 คนเกิดวันจันทร์   (ใช้ 🟡 จันทร์, 🩷 อังคาร, 🟢 พุธ, 🟠 พฤหัส, 🔵 ศุกร์)
+งาน: ประโยคสั้น 1 ประโยค
+เงิน: ประโยคสั้น 1 ประโยค
+ความรัก: ประโยคสั้น 1 ประโยค
+เลขมงคล .. · สีมงคล ..
+(ข้อมูลต้องตรงกับ JSON)
+ปิดท้าย: "ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจไว้อ่านดวงใหม่ทุกวันแบบสุภาพ 1 บรรทัด
+บรรทัดสุดท้าย: แฮชแท็ก 3–5 อัน
+
+ข้อห้ามของแคปชัน (ผิดกฎหรือ Facebook ลดการมองเห็น):
+- ห้ามขอให้พิมพ์ "สาธุ" หรือคอมเมนต์เพื่อรับโชค ห้ามชวนแชร์ แท็กเพื่อน หรือกดไลก์/รีแอคเพื่อรับดวง
+- ห้ามพูดถึงหวย เลขเด็ด สลาก หรือการพนัน และห้ามโยงเลขมงคลกับการเสี่ยงโชคด้วยเงิน
+- ห้ามรับประกันผล (เช่น รวยแน่ 100%) ห้ามชวนซื้อของแก้ดวงหรือโอนเงิน
+- ห้ามให้คำแนะนำเจาะจงเรื่องการลงทุนหรือสุขภาพ
+- ใช้อีโมจิเฉพาะหัวข้อแต่ละวัน ไม่ใส่อีโมจิรกทุกบรรทัด ไม่พิมพ์ตัวพิมพ์ใหญ่หรือเครื่องหมาย !!! ซ้ำๆ`;
+  }
+
+  // ---------- avatar ----------
+  function setAvatar(dataUrl) {
+    if (!dataUrl) return;
+    const img = new Image();
+    img.onload = () => { avatarImg = img; $('avatarThumb').src = dataUrl; $('avatarThumb').hidden = false; $('avatarPh').hidden = true; render(); };
+    img.src = dataUrl;
+  }
+  $('avatar').addEventListener('change', e => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas'); c.width = c.height = 256;
+        const s = 256 / Math.min(img.width, img.height), g = c.getContext('2d');
+        g.drawImage(img, (256 - img.width * s) / 2, (256 - img.height * s) / 2, img.width * s, img.height * s);
+        const url = c.toDataURL('image/jpeg', 0.9);
+        store.set('avatar', url); setAvatar(url);
+      };
+      img.src = r.result;
+    };
+    r.readAsDataURL(f);
+  });
+
+  // ---------- wire up ----------
+  ['pageName', 'pageSub', 'cta'].forEach(id => {
+    const saved = store.get(id, null); if (saved !== null) $(id).value = saved;
+    $(id).addEventListener('input', () => { store.set(id, $(id).value); render(); });
+  });
+  $('json').value = store.get('json', null) ?? JSON.stringify(SAMPLE, null, 2);
+  $('json').addEventListener('input', onJson);
+  $('reroll').addEventListener('click', () => { reroll++; render(); });
+  $('specDesign').addEventListener('click', () => { overrides = {}; DIMS.forEach(d => overrides[d.key] = d.spec); syncSelects(); render(); });
+  $('autoDesign').addEventListener('click', () => { overrides = {}; syncSelects(); render(); });
+  $('download').addEventListener('click', download);
+  $('copyImg').addEventListener('click', copyImage);
+  const today = new Date(); today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  $('promptDate').value = today.toISOString().slice(0, 10);
+  $('promptDate').addEventListener('change', buildPrompt);
+  $('copyPrompt').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('promptText').value); $('promptStatus').textContent = 'คัดลอกแล้ว'; }
+    catch { $('promptText').select(); $('promptStatus').textContent = 'เลือกข้อความไว้แล้ว กด Ctrl+C'; }
+  });
+  $('caption').value = store.get('caption', null) ?? SAMPLE_CAPTION;
+  $('caption').addEventListener('input', onCaption);
+  $('copyCaption').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('caption').value); $('capStatus').textContent = 'คัดลอกแล้ว'; }
+    catch { $('caption').select(); $('capStatus').textContent = 'เลือกข้อความไว้แล้ว กด Ctrl+C'; }
+  });
+  onCaption();
+  buildPrompt();
+  buildVariantControls();
+  setAvatar(store.get('avatar', null));
+
+  (async () => {
+    try {
+      await Promise.all([
+        document.fonts.load('400 92px Chonburi', 'ดวงวันพุธ 0123456789'),
+        document.fonts.load('400 30px Kanit', 'คนเกิดวันจันทร์ ศุกร์ 0123'),
+        document.fonts.load('500 30px Kanit', 'ดูดวงรายวัน เกิดวัน'),
+        document.fonts.load('600 30px Kanit', 'รัชฌา ปัททุม')
+      ]);
+      await document.fonts.ready;
+      fontsOk = document.fonts.check('400 40px Chonburi', 'ดวง') && document.fonts.check('500 30px Kanit', 'ดวง');
+    } catch { fontsOk = false; }
+    const { obj, msgs } = parseInput($('json').value);
+    showMsgs(msgs);
+    if (obj) data = obj;
+    render();
+  })();
+})();
+</script>
