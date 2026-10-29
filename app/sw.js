@@ -1,5 +1,5 @@
 // Network first for the app's own files (so updates arrive), cache first for Google Fonts.
-const CACHE = 'duang-v10';
+const CACHE = 'duang-v11';
 const SHELL = ['./', 'index.html', 'engine.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
   'mascot/wave.webp', 'mascot/thumbs.webp', 'mascot/heart.webp', 'mascot/hips.webp',
   'mascot/bubbles.webp', 'mascot/cheer.webp', 'mascot/peace.webp', 'mascot/apple.webp'];

@@ -147,7 +147,7 @@ label { font-size: 15px; color: var(--muted); }
   <section class="step" id="s4">
     <h2><span class="num">4</span>โพสต์ลง Facebook</h2>
     <div class="stack" id="directBox" hidden>
-      <button class="btn" id="postBtn" type="button"></button>
+      <button class="btn" id="postBtn" type="button">โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)</button>
       <p class="how" id="postHow">โพสต์ขึ้นหน้าเพจ <b id="pageNameDirect">เพจ</b> ทันทีพร้อมแคปชัน แล้วใส่คำทำนายฉบับเต็มเป็นคอมเมนต์แรกให้ ไม่ต้องเปิดแอป Facebook</p>
       <p class="small" style="text-align:center">หรือแชร์เองตามวิธีด้านล่าง</p>
     </div>
@@ -258,12 +258,23 @@ label { font-size: 15px; color: var(--muted); }
     ]
   };
   const SAMPLE_WEEK_CAPTION = `ดวงประจำสัปดาห์ 2 – 8 พฤศจิกายน 2569 มาแล้วค่ะ
-ดูดวงวันเกิดของตัวเองในภาพ เตรียมตัวรับสัปดาห์ใหม่ได้เลยค่ะ
+อ่านคำทำนายฉบับเต็มของทุกวันเกิดได้ที่คอมเมนต์ใต้โพสต์นี้เลยค่ะ 👇
 
 ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
 ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกสัปดาห์นะคะ
 
 #ดวงประจำสัปดาห์ #ดูดวง #ดวงรายสัปดาห์`;
+  const SAMPLE_WEEK_COMMENT = `คำทำนายฉบับเต็ม ดวงประจำสัปดาห์ 2 – 8 พฤศจิกายน 2569
+
+🔴 คนเกิดวันอาทิตย์
+การงาน: มีเรื่องให้ตัดสินใจหลายอย่าง ค่อยๆ เรียงลำดับก่อนหลังแล้วงานจะเดินได้ดีค่ะ
+การเงิน: รายรับเข้ามาตามนัด แต่รายจ่ายจุกจิกเยอะ จดไว้จะคุมได้ง่ายขึ้น
+ความรัก: คุยกันตรงๆ จะช่วยคลายเรื่องที่ค้างใจ
+คนโสด: มีคนเก่ากลับมาทักทาย คิดให้ดีก่อนเปิดใจ
+สุขภาพ: ระวังนอนดึก พักสายตาบ้าง
+ข้อแนะนำประจำสัปดาห์: ทำทีละเรื่อง ไม่ต้องรีบ
+
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ`;
   const SAMPLE_ZODIAC = {
     type: 'zodiac',
     signs: [
@@ -282,12 +293,22 @@ label { font-size: 15px; color: var(--muted); }
     ].map(([sign, work, money, love, health, luckyNumber, luckyColorName, luckyColorHex]) => ({ sign, work, money, love, health, luckyNumber, luckyColorName, luckyColorHex }))
   };
   const SAMPLE_ZODIAC_CAPTION = `ดวง 12 ราศีมาแล้วค่ะ
-หาราศีของตัวเองในภาพได้เลยค่ะ
+อ่านคำทำนายฉบับเต็มของทุกราศีได้ที่คอมเมนต์ใต้โพสต์นี้เลยค่ะ 👇
 
 ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
 ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกวันนะคะ
 
 #ดวง12ราศี #ดูดวง #ดวงรายวัน`;
+  const SAMPLE_ZODIAC_COMMENT = `คำทำนายฉบับเต็ม ดวง 12 ราศีประจำวันพฤหัสบดีที่ 29 ตุลาคม 2569
+
+♈ ราศีเมษ (13 เม.ย. – 13 พ.ค.)
+งาน: เหมาะกับการเริ่มงานใหม่ มีคนพร้อมช่วยค่ะ
+เงิน: รายรับเพิ่มขึ้นเล็กน้อย แบ่งเก็บไว้บ้าง
+ความรัก: คุยกันเข้าใจง่าย บรรยากาศดี
+สุขภาพ: พักผ่อนให้พอ
+สีมงคล แดง · เลขมงคล 14
+
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ`;
 
   let saved = store.get('current', null);
   let data = saved?.data || SAMPLE;
@@ -298,7 +319,6 @@ label { font-size: 15px; color: var(--muted); }
   let current = null;
   let pickedDate = new Date();
   let mode = 'day';
-  const noComment = () => data.type === 'week' || data.type === 'zodiac';
 
   // ---------- toast ----------
   let toastTimer;
@@ -393,7 +413,6 @@ label { font-size: 15px; color: var(--muted); }
   let renderToken = 0;
   async function render() {
     const token = ++renderToken;
-    syncKind();
     const chosen = Duang.chooseVariants(data, reroll, overrides, store.get('history', []));
     const cv = $('cv');
     Duang.draw(cv, data, chosen, { pageName: $('pageName').value, pageSub: $('pageSub').value, cta: $('cta').value, avatarImg });
@@ -403,11 +422,6 @@ label { font-size: 15px; color: var(--muted); }
     current = { blob, url: URL.createObjectURL(blob), key: chosen.key, date: data.date };
     $('out').src = current.url;
     $('sampleTag').hidden = !isSample;
-  }
-  // the weekly image carries the whole reading, so it has no comment to post
-  function syncKind() {
-    $('commentBox').hidden = noComment(); $('commentSteps').hidden = noComment();
-    if (!confirmTimer) $('postBtn').textContent = postLabel();
   }
   function onCaption() {
     showMsgs($('capMsgs'), [...Duang.checkComment($('comment').value), ...Duang.checkCaption($('caption').value)]);
@@ -447,8 +461,7 @@ label { font-size: 15px; color: var(--muted); }
       try {
         await navigator.share({ files: [file] });
         remember();
-        if (noComment()) toast(capOk ? 'อย่าลืม: กดค้างช่องข้อความใน Facebook แล้วเลือก "วาง" แคปชัน' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวางด้วย', 7000);
-        else toast(capOk ? 'อย่าลืม: วางแคปชันในช่องข้อความ แล้วโพสต์เสร็จค่อยกด "คัดลอกคอมเมนต์"' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวาง แล้วตามด้วยคอมเมนต์', 7000);
+        toast(capOk ? 'อย่าลืม: วางแคปชันในช่องข้อความ แล้วโพสต์เสร็จค่อยกด "คัดลอกคอมเมนต์"' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวาง แล้วตามด้วยคอมเมนต์', 7000);
       } catch (e) {
         if (e?.name !== 'AbortError') { toast('แชร์ไม่สำเร็จ ลองกด "บันทึกภาพ" แล้วโพสต์จากแอป Facebook แทน', 6000); }
       }
@@ -499,7 +512,7 @@ label { font-size: 15px; color: var(--muted); }
     } catch { fbStatus('err', 'เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่'); }
   });
   let confirmTimer = null;
-  const postLabel = () => noComment() ? 'โพสต์ลงเพจเลย (ภาพ + แคปชัน)' : 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
+  const POST_LABEL = 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
   $('postBtn').addEventListener('click', async () => {
     if (!current) return;
     if (isSample) { toast('นี่เป็นภาพตัวอย่าง ทำขั้นที่ 1 และ 2 ก่อน', 5000); return; }
@@ -507,7 +520,7 @@ label { font-size: 15px; color: var(--muted); }
     // first tap arms, second tap within 6 seconds posts
     if (!confirmTimer) {
       btn.textContent = 'แตะอีกครั้งเพื่อยืนยันโพสต์';
-      confirmTimer = setTimeout(() => { confirmTimer = null; btn.textContent = postLabel(); }, 6000);
+      confirmTimer = setTimeout(() => { confirmTimer = null; btn.textContent = POST_LABEL; }, 6000);
       return;
     }
     clearTimeout(confirmTimer); confirmTimer = null;
@@ -535,7 +548,7 @@ label { font-size: 15px; color: var(--muted); }
     } catch {
       toast('โพสต์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่ หรือใช้ปุ่มแชร์ด้านล่าง', 8000);
     } finally {
-      btn.disabled = false; btn.textContent = postLabel();
+      btn.disabled = false; btn.textContent = POST_LABEL;
     }
   });
   showDirect();
@@ -561,9 +574,9 @@ label { font-size: 15px; color: var(--muted); }
   $('loadSample').addEventListener('click', () => {
     const [d, cap, com] = {
       day: [SAMPLE, SAMPLE_CAPTION, SAMPLE_COMMENT],
-      week: [SAMPLE_WEEK, SAMPLE_WEEK_CAPTION, ''],
-      zday: [{ ...SAMPLE_ZODIAC, period: 'day', date: '29 ตุลาคม 2569', dayTitle: 'พฤหัสบดี' }, SAMPLE_ZODIAC_CAPTION, ''],
-      zweek: [{ ...SAMPLE_ZODIAC, period: 'week', date: '2 – 8 พฤศจิกายน 2569' }, SAMPLE_ZODIAC_CAPTION, '']
+      week: [SAMPLE_WEEK, SAMPLE_WEEK_CAPTION, SAMPLE_WEEK_COMMENT],
+      zday: [{ ...SAMPLE_ZODIAC, period: 'day', date: '29 ตุลาคม 2569', dayTitle: 'พฤหัสบดี' }, SAMPLE_ZODIAC_CAPTION, SAMPLE_ZODIAC_COMMENT],
+      zweek: [{ ...SAMPLE_ZODIAC, period: 'week', date: '2 – 8 พฤศจิกายน 2569' }, SAMPLE_ZODIAC_CAPTION, SAMPLE_ZODIAC_COMMENT]
     }[mode];
     data = d; isSample = true;
     $('caption').value = cap; $('comment').value = com; store.set('current', null);
@@ -608,7 +621,7 @@ label { font-size: 15px; color: var(--muted); }
   $('caption').value = saved?.caption ?? SAMPLE_CAPTION;
   $('comment').value = saved ? (saved.comment || '') : SAMPLE_COMMENT;
   if (saved) { $('s2').classList.add('done'); showMsgs($('parseMsgs'), [['ok', `ล่าสุด: ${dataTitle(data).replace(/^ได้/, '')}`]]); }
-  buildModes(); buildVariantControls(); syncKind(); showName(); onCaption();
+  buildModes(); buildVariantControls(); showName(); onCaption();
   setAvatar(store.get('avatar', null));
   if (!store.get('avatar', null)) $('settings').open = true;
 

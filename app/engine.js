@@ -408,8 +408,8 @@ window.Duang = (() => {
     ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 11); ctx.moveTo(cx - 8, cy + 3); ctx.lineTo(cx, cy + 11); ctx.lineTo(cx + 8, cy + 3); ctx.stroke();
   }
 
-  // P here is the layout's side margin (the weekly grid uses a narrower one); the CTA is daily only.
-  function drawFooter(ctx, v, T, S, P, showCta = true) {
+  // P here is the layout's side margin (the weekly and sign grids use a narrower one).
+  function drawFooter(ctx, v, T, S, P) {
     const cy = H - P - 36, ax = P + 36;
     ctx.save(); ctx.beginPath(); ctx.arc(ax, cy, 34, 0, Math.PI * 2); ctx.clip();
     if (S.avatarImg) {
@@ -425,7 +425,7 @@ window.Duang = (() => {
     ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, cy, 35.5, 0, Math.PI * 2); ctx.stroke();
 
     const tx = P + 72 + 18;
-    const cta = showCta ? (S.cta || '').trim() : '';
+    const cta = (S.cta || '').trim();
     let ctaLeft = W - P;
     if (cta) {
       const fs = fit(ctx, cta, F.k5, 24, 470);
@@ -493,7 +493,7 @@ window.Duang = (() => {
       const rowH = (bottom - top - gap * (rows.length - 1)) / rows.length;
       rows.forEach((item, i) => drawRow(ctx, v, T, item, i, top + i * (rowH + gap), rowH));
     }
-    drawFooter(ctx, v, T, S, L.M, kind === 'day');
+    drawFooter(ctx, v, T, S, L.M);
   }
 
   // ---------- weekly: 3 cards over 4, each with the reading plus love / single / health ----------
@@ -696,7 +696,7 @@ window.Duang = (() => {
   // ---------- public: parse Claude's answer ----------
   // One blank line before every section start: each birth-day header, the closing note, the hashtags.
   // Lines inside a section stay together; runs of blank lines collapse to one.
-  const SECTION_START = /^(?:[🔴🟡🩷🟢🟠🔵🟣🟤⚪⚫]|คนเกิดวัน|ดวงเป็นแนวทาง|.*เพื่อความบันเทิง|#)/u;
+  const SECTION_START = /^(?:[🔴🟡🩷🟢🟠🔵🟣🟤⚪⚫♈-♓]|คนเกิดวัน|ราศี|ดวงเป็นแนวทาง|.*เพื่อความบันเทิง|#)/u;
   function formatCaption(t) {
     const out = [];
     for (const raw of femaleVoice(String(t || '')).replace(/\r/g, '').split('\n')) {
@@ -739,6 +739,7 @@ window.Duang = (() => {
       .replace(/^\s*---+\s*$/gm, ''));
   }
   // The AI writes the short post caption, then this marker line, then the full reading for the first comment.
+  const NO_COMMENT = ['warn', 'ไม่มีคำทำนายฉบับเต็มสำหรับคอมเมนต์ ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง'];
   const COMMENT_MARK = /^[ \t]*=+[ \t]*คอมเมนต์[ \t]*=+[ \t]*$/m;
   function parse(raw) {
     const msgs = [];
@@ -758,10 +759,10 @@ window.Duang = (() => {
     if (mark) { comment = cleanCaption(caption.slice(mark.index + mark[0].length)); caption = caption.slice(0, mark.index); }
     caption = cleanCaption(caption);
     if (!obj) return { msgs: [['err', 'ยังหาดวงในข้อความที่วางไม่เจอ ลองกลับไปที่แอป AI แล้วกดคัดลอกคำตอบทั้งหมดอีกครั้ง']] };
-    if (obj.type === 'zodiac' || Array.isArray(obj.signs)) return parseZodiac(obj, caption, msgs);
+    if (obj.type === 'zodiac' || Array.isArray(obj.signs)) return parseZodiac(obj, caption, comment, msgs);
     if (!Array.isArray(obj.days) || obj.days.length < 7) return { msgs: [['err', 'ดวงยังไม่ครบ 7 วัน (อาทิตย์ถึงเสาร์) ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']] };
     if (obj.type === 'week' || obj.days.some(x => x && x.reading)) {
-      // weekly: the image carries the whole reading, so there is no comment and no ratings
+      // weekly: no ratings; the image has the short reading and the comment the full one
       obj.type = 'week'; obj.days = obj.days.slice(0, 7);
       obj.days.forEach(it => ['reading', 'love', 'single', 'health'].forEach(k => { if (typeof it[k] === 'string') it[k] = femaleVoice(it[k]); }));
       if (caption) caption = ensureDayTag(caption, '', '#ดวงประจำสัปดาห์');
@@ -771,10 +772,11 @@ window.Duang = (() => {
         if (!String(it.reading || '').trim()) msgs.push(['warn', `${n}: ไม่มีคำทำนาย`]);
         if (thaiLen([it.reading, it.love, it.single, it.health].join('')) > 260) msgs.push(['warn', `${n}: คำทำนายยาวไป ตัวหนังสือจะเล็กลง`]);
       });
-      return { obj, caption, comment: '', msgs };
+      if (!comment) msgs.push(NO_COMMENT);
+      return { obj, caption, comment, msgs };
     }
     if (caption) caption = ensureDayTag(caption, obj.dayTitle);
-    if (!comment) msgs.push(['warn', 'ไม่มีคำทำนายฉบับเต็มสำหรับคอมเมนต์ ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']);
+    if (!comment) msgs.push(NO_COMMENT);
     if (!obj.date) msgs.push(['warn', 'ไม่มีวันที่ ภาพจะไม่มีวันที่']);
     if (!obj.dayTitle) msgs.push(['warn', 'ไม่มีชื่อวัน หัวข้อจะเหลือแค่ "ดวงวัน"']);
     obj.days.slice(0, 7).forEach((it, i) => {
@@ -788,8 +790,8 @@ window.Duang = (() => {
     return { obj, caption, comment, msgs };
   }
 
-  // 12 signs: the image carries the whole reading, so there is no comment.
-  function parseZodiac(obj, caption, msgs) {
+  // 12 signs: short lines in the image, the full reading in the comment.
+  function parseZodiac(obj, caption, comment, msgs) {
     if (!Array.isArray(obj.signs) || obj.signs.length < 12) return { msgs: [['err', 'ดวงยังไม่ครบ 12 ราศี ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']] };
     obj.type = 'zodiac'; obj.period = obj.period === 'week' ? 'week' : 'day'; obj.signs = obj.signs.slice(0, 12);
     if (!obj.date) msgs.push(['warn', 'ไม่มีวันที่ ภาพจะไม่มีวันที่']);
@@ -803,7 +805,8 @@ window.Duang = (() => {
       if (it.luckyColorHex && !validHex(it.luckyColorHex)) msgs.push(['warn', `${n}: รหัสสีไม่ถูกต้อง ใช้สีทองแทน`]);
     });
     if (caption) caption = ensureDayTag(caption, '', '#ดวง12ราศี');
-    return { obj, caption, comment: '', msgs };
+    if (!comment) msgs.push(NO_COMMENT);
+    return { obj, caption, comment, msgs };
   }
 
   // ---------- public: caption checks (Facebook) ----------
@@ -863,32 +866,17 @@ window.Duang = (() => {
 - คะแนนต้องสอดคล้องกับ headline และแต่ละวันไม่ควรได้คะแนนชุดเดียวกัน
 - luckyNumber เป็นตัวเลข 1–2 หลัก, luckyColorName ชื่อสีภาษาไทยคำเดียวสั้นๆ, luckyColorHex รหัสสีของสีนั้น
 
-หลัง JSON ให้เขียน 2 ส่วน เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown
-
-ส่วนที่ 1 แคปชันโพสต์ Facebook แบบสั้น (ไม่ต้องใส่คำทำนายรายวันเกิด) ตามโครงนี้
-บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็นดวงวัน${wd}ที่ ${ds}
-บรรทัดที่ 2: บอกสั้นๆ ว่าอ่านคำทำนายฉบับเต็มของทุกวันเกิดได้ที่คอมเมนต์ใต้โพสต์ ลงท้ายด้วย 👇
-(เว้นหนึ่งบรรทัด)
-"ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุกวันแบบสุภาพ 1 บรรทัด
-(เว้นหนึ่งบรรทัด)
-แฮชแท็ก 3–5 อัน ต้องมี #ดวงวัน${wd} เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น #ดูดวงรายวัน #ดวงวันนี้
-
-จากนั้นขึ้นบรรทัดใหม่ แล้วพิมพ์บรรทัดนี้ตามตัวเป๊ะๆ
-=== คอมเมนต์ ===
-
-ส่วนที่ 2 คำทำนายฉบับเต็ม (จะนำไปโพสต์เป็นคอมเมนต์แรกใต้โพสต์) ตามโครงนี้
-บรรทัดแรก: คำทำนายฉบับเต็ม ดวงวัน${wd}ที่ ${ds}
-(เว้นหนึ่งบรรทัด)
-แล้วแยกเป็นช่วงของแต่ละวันเกิด ครบ 7 วัน เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
-🔴 คนเกิดวันอาทิตย์   (ใช้ 🔴 อาทิตย์, 🟡 จันทร์, 🩷 อังคาร, 🟢 พุธ, 🟠 พฤหัส, 🔵 ศุกร์, 🟣 เสาร์)
+${postParts(pageName, {
+  unit: 'วันเกิด', follow: 'วัน', opening: `ดวงวัน${wd}ที่ ${ds}`, commentTitle: `ดวงวัน${wd}ที่ ${ds}`,
+  tags: [`#ดวงวัน${wd}`, '#ดูดวงรายวัน', '#ดวงวันนี้'],
+  sections: `แล้วแยกเป็นช่วงของแต่ละวันเกิด ครบ 7 วัน เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
+${DAY_HEAD}
 งาน: 1–2 ประโยค
 เงิน: 1–2 ประโยค
 ความรัก: 1–2 ประโยค
 เลขมงคล .. · สีมงคล ..
-(ข้อมูลต้องตรงกับ JSON)
-ปิดท้าย: "ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" (ส่วนนี้ไม่ต้องมีแฮชแท็ก)
-
-${promptRules('ใช้อีโมจิเฉพาะหัวข้อแต่ละวันและ 👇 ในแคปชัน')}`;
+(ข้อมูลต้องตรงกับ JSON)`
+})}`;
   }
 
   // `dt` is the day itself, or the Monday that starts the week.
@@ -916,15 +904,43 @@ ${promptRules('ใช้อีโมจิเฉพาะหัวข้อแ�
 - ห้ามเขียนถึงโชคจากการเสี่ยงดวง หวย หรือการพนัน
 - luckyNumber เป็นตัวเลข 1–2 หลัก, luckyColorName ชื่อสีภาษาไทยคำเดียวสั้นๆ, luckyColorHex รหัสสีของสีนั้น
 
-หลัง JSON ให้เขียนแคปชันโพสต์ Facebook แบบสั้น เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown ตามโครงนี้
-บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็นดวง 12 ราศี${when}
-บรรทัดที่ 2: ชวนหาราศีของตัวเองในภาพ 1 ประโยค
-(เว้นหนึ่งบรรทัด)
-"ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุก${week ? 'สัปดาห์' : 'วัน'}แบบสุภาพ 1 บรรทัด
-(เว้นหนึ่งบรรทัด)
-แฮชแท็ก 3–5 อัน ต้องมี #ดวง12ราศี เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น #ดูดวง #${week ? 'ดวงรายสัปดาห์' : 'ดวงรายวัน'}
+${postParts(pageName, {
+  unit: 'ราศี', follow: week ? 'สัปดาห์' : 'วัน', opening: `ดวง 12 ราศี${when}`, commentTitle: `ดวง 12 ราศี${when}`,
+  tags: ['#ดวง12ราศี', '#ดูดวง', week ? '#ดวงรายสัปดาห์' : '#ดวงรายวัน'],
+  sections: `แล้วแยกเป็นช่วงของแต่ละราศี ครบ 12 ราศี เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
+♈ ราศีเมษ (13 เม.ย. – 13 พ.ค.)   (ใช้สัญลักษณ์และช่วงวันที่ตามนี้: ${SIGNS.map(s => `${s[1]} ${s[0]} ${s[2]}`).join(', ')})
+งาน: 1–2 ประโยค
+เงิน: 1–2 ประโยค
+ความรัก: 1–2 ประโยค
+สุขภาพ: 1 ประโยค
+สีมงคล .. · เลขมงคล ..
+(ข้อมูลต้องตรงกับ JSON แต่ละเอียดกว่าในภาพ)`
+})}`;
+  }
 
-${promptRules('ใช้อีโมจิได้ไม่เกิน 2 ตัวในแคปชัน')}`;
+  const DAY_HEAD = '🔴 คนเกิดวันอาทิตย์   (ใช้ 🔴 อาทิตย์, 🟡 จันทร์, 🩷 อังคาร, 🟢 พุธ, 🟠 พฤหัส, 🔵 ศุกร์, 🟣 เสาร์)';
+  // Every post: a short caption pointing to the comments, the marker line, then the full reading for the first comment.
+  function postParts(pageName, { unit, follow, opening, commentTitle, tags, sections }) {
+    return `หลัง JSON ให้เขียน 2 ส่วน เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown
+
+ส่วนที่ 1 แคปชันโพสต์ Facebook แบบสั้น (ไม่ต้องใส่คำทำนายของแต่ละ${unit}) ตามโครงนี้
+บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็น${opening}
+บรรทัดที่ 2: บอกสั้นๆ ว่าอ่านคำทำนายฉบับเต็มของทุก${unit}ได้ที่คอมเมนต์ใต้โพสต์ ลงท้ายด้วย 👇
+(เว้นหนึ่งบรรทัด)
+"ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุก${follow}แบบสุภาพ 1 บรรทัด
+(เว้นหนึ่งบรรทัด)
+แฮชแท็ก 3–5 อัน ต้องมี ${tags[0]} เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น ${tags.slice(1).join(' ')}
+
+จากนั้นขึ้นบรรทัดใหม่ แล้วพิมพ์บรรทัดนี้ตามตัวเป๊ะๆ
+=== คอมเมนต์ ===
+
+ส่วนที่ 2 คำทำนายฉบับเต็ม (จะนำไปโพสต์เป็นคอมเมนต์แรกใต้โพสต์) ตามโครงนี้
+บรรทัดแรก: คำทำนายฉบับเต็ม ${commentTitle}
+(เว้นหนึ่งบรรทัด)
+${sections}
+ปิดท้าย: "ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" (ส่วนนี้ไม่ต้องมีแฮชแท็ก)
+
+${promptRules(`ใช้อีโมจิเฉพาะหัวข้อแต่ละ${unit}และ 👇 ในแคปชัน`)}`;
   }
 
   // Voice and Facebook rules shared by the daily and weekly prompts.
@@ -972,15 +988,19 @@ ${promptRules('ใช้อีโมจิได้ไม่เกิน 2 ต�
 - น้ำเสียงอบอุ่น ให้กำลังใจ ไม่ทำนายเรื่องน่ากลัว เช่น ความตาย อุบัติเหตุร้ายแรง คดีความ การหย่าร้าง
 - ไม่ต้องใส่ชื่อวันหรือคำว่า "คนเกิดวัน..." ซ้ำในข้อความ
 
-หลัง JSON ให้เขียนแคปชันโพสต์ Facebook แบบสั้น เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown ตามโครงนี้
-บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็นดวงประจำสัปดาห์ ${range}
-บรรทัดที่ 2: ชวนดูดวงของวันเกิดตัวเองในภาพ เพื่อเตรียมตัวรับสัปดาห์ใหม่ 1 ประโยค
-(เว้นหนึ่งบรรทัด)
-"ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุกสัปดาห์แบบสุภาพ 1 บรรทัด
-(เว้นหนึ่งบรรทัด)
-แฮชแท็ก 3–5 อัน ต้องมี #ดวงประจำสัปดาห์ เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น #ดูดวง #ดวงรายสัปดาห์
-
-${promptRules('ใช้อีโมจิได้ไม่เกิน 2 ตัวในแคปชัน')}`;
+${postParts(pageName, {
+  unit: 'วันเกิด', follow: 'สัปดาห์', opening: `ดวงประจำสัปดาห์ ${range}`, commentTitle: `ดวงประจำสัปดาห์ ${range}`,
+  tags: ['#ดวงประจำสัปดาห์', '#ดูดวง', '#ดวงรายสัปดาห์'],
+  sections: `แล้วแยกเป็นช่วงของแต่ละวันเกิด ครบ 7 วัน เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
+${DAY_HEAD}
+การงาน: 2 ประโยค
+การเงิน: 2 ประโยค
+ความรัก: 1–2 ประโยค (คนมีคู่)
+คนโสด: 1–2 ประโยค
+สุขภาพ: 1 ประโยค
+ข้อแนะนำประจำสัปดาห์: 1 ประโยค
+(เนื้อหาต้องสอดคล้องกับ JSON แต่ละเอียดกว่าในภาพ)`
+})}`;
   }
 
   return { W, H, DIMS, loadMascots, chooseVariants, draw, parse, formatCaption, checkCaption, checkComment, buildPrompt, buildWeekPrompt, buildZodiacPrompt, weekRange, thaiDate };
