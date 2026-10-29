@@ -236,13 +236,15 @@ window.Duang = (() => {
   const LAYOUT = {
     day:  { M: P, badge: 'ดูดวงรายวัน', badgeY: P - 8, titleY: 236, titleSize: 112, subY: 284, mascotBottom: 320, mascotH: 282, top: 310 },
     week: { M: 32, badge: 'ดูดวงรายสัปดาห์', badgeY: 30, titleY: 186, titleSize: 96, subY: 236, mascotBottom: 276, mascotH: 248, top: 264 },
-    zodiac: { M: 32, badge: 'ดูดวงรายวัน', badgeY: 28, titleY: 166, titleSize: 86, subY: 212, mascotBottom: 246, mascotH: 222, top: 234 }
+    zodiac: { M: 32, badge: 'ดูดวงรายวัน', badgeY: 28, titleY: 166, titleSize: 86, subY: 212, mascotBottom: 246, mascotH: 222, top: 234 },
+    // one birth day or one sign per image, with the full reading
+    detail: { M: 44, badgeY: 36, titleY: 196, titleSize: 104, subY: 250, mascotBottom: 312, mascotH: 270, top: 288 }
   };
+  const ZODIAC_BADGE = { day: 'ดูดวงรายวัน', week: 'ดูดวงรายสัปดาห์', month: 'ดูดวงรายเดือน' };
 
-  function drawHeader(ctx, v, T, d, L) {
-    const M = L.M, badge = d.type === 'zodiac' && d.period === 'week' ? 'ดูดวงรายสัปดาห์' : L.badge;
+  function drawBadge(ctx, v, badge, M, by) {
     ctx.font = F.k5(23);
-    const bw = ctx.measureText(badge).width + 44 + (v.badge === 'sparkle' ? 40 : 0), bh = 44, by = L.badgeY;
+    const bw = ctx.measureText(badge).width + 44 + (v.badge === 'sparkle' ? 40 : 0), bh = 44;
     rr(ctx, M, by, bw, bh, bh / 2);
     if (v.badge === 'soft') { ctx.fillStyle = rgba(GOLD, 0.16); ctx.fill(); }
     ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke();
@@ -250,6 +252,11 @@ window.Duang = (() => {
     if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, M + 28, by + bh / 2, 7); ctx.fill(); tx += 20; }
     text(ctx, badge, tx, by + 30, F.k5, 23, GOLD);
     if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, M + bw - 28, by + bh / 2, 7); ctx.fill(); }
+  }
+
+  function drawHeader(ctx, v, T, d, L) {
+    const M = L.M;
+    drawBadge(ctx, v, d.type === 'zodiac' ? ZODIAC_BADGE[d.period] || L.badge : L.badge, M, L.badgeY);
 
     const m = v.mascot !== 'none' && mascots[v.mascot];
     let textMax = W - M * 2 - 70;
@@ -260,7 +267,7 @@ window.Duang = (() => {
     if (d.type === 'zodiac') {
       drawTitle(ctx, 'ดวง 12 ', 'ราศี', 'rainbow', L, textMax);
       const day = String(d.dayTitle || '').trim().replace(/^วัน/, '');
-      const sub = d.period === 'week' ? `ประจำสัปดาห์ ${date}` : `ประจำวัน${day}${/^\d/.test(date) ? 'ที่ ' : ''}${date}`;
+      const sub = d.period === 'month' ? `ประจำเดือน${date}` : d.period === 'week' ? `ประจำสัปดาห์ ${date}` : `ประจำวัน${day}${/^\d/.test(date) ? 'ที่ ' : ''}${date}`;
       if (date) text(ctx, sub, M, L.subY, F.k5, 29, SUB, 'left', m ? textMax : W - M * 2);
     } else if (d.type === 'week') {
       drawTitle(ctx, 'ดวงประจำ', 'สัปดาห์', 'rainbow', L, textMax);
@@ -401,11 +408,14 @@ window.Duang = (() => {
     text(ctx, cname, sx + dotR * 2 + 7, ccy, F.k4, cs, SUB);
   }
 
-  // points down: the full reading is in the comments under the post
-  function drawArrow(ctx, x, cy, w, color) {
+  // down: the full reading is in the comments; right: it is in the next images of the post
+  function drawArrow(ctx, x, cy, w, color, dir = 'down') {
     const cx = x + w / 2;
     ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 11); ctx.moveTo(cx - 8, cy + 3); ctx.lineTo(cx, cy + 11); ctx.lineTo(cx + 8, cy + 3); ctx.stroke();
+    ctx.beginPath();
+    if (dir === 'right') { ctx.moveTo(x, cy); ctx.lineTo(x + w, cy); ctx.moveTo(x + w - 9, cy - 8); ctx.lineTo(x + w, cy); ctx.lineTo(x + w - 9, cy + 8); }
+    else { ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 11); ctx.moveTo(cx - 8, cy + 3); ctx.lineTo(cx, cy + 11); ctx.lineTo(cx + 8, cy + 3); }
+    ctx.stroke();
   }
 
   // P here is the layout's side margin (the weekly and sign grids use a narrower one).
@@ -436,7 +446,7 @@ window.Duang = (() => {
         text(ctx, cta, x0, cy + 8, F.k5, fs, GOLD);
         ctx.strokeStyle = rgba(GOLD, 0.6); ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x0, cy + 22); ctx.lineTo(x0 + tw, cy + 22); ctx.stroke();
-        drawArrow(ctx, W - P - arrowW, cy, arrowW, GOLD);
+        drawArrow(ctx, W - P - arrowW, cy, arrowW, GOLD, S.arrow);
         ctaLeft = x0;
       } else {
         const bw = tw + 48 + arrowW + 10, bh = 58, bx = W - P - bw;
@@ -445,7 +455,7 @@ window.Duang = (() => {
         else { ctx.fillStyle = rgba(GOLD, 0.08); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); }
         const col = v.cta === 'filled' ? NAVY : GOLD;
         text(ctx, cta, bx + 24, cy + 8, F.k5, fs, col);
-        drawArrow(ctx, bx + 24 + tw + 10, cy, arrowW, col);
+        drawArrow(ctx, bx + 24 + tw + 10, cy, arrowW, col, S.arrow);
         ctaLeft = bx;
       }
     }
@@ -475,7 +485,16 @@ window.Duang = (() => {
   }
 
   // ---------- public: draw ----------
-  function draw(canvas, d, chosen, S) {
+  // Weekly and monthly posts are sets: the summary grid as a cover, then one image per birth day or sign.
+  const isSet = d => (d.type === 'week' && (d.days || []).some(x => x && x.work)) || (d.type === 'zodiac' && d.period === 'month');
+  function pages(d) {
+    if (!isSet(d)) return [{ kind: 'cover' }];
+    return d.type === 'week'
+      ? [{ kind: 'cover' }, ...d.days.slice(0, 7).map((item, i) => ({ kind: 'day', item, i }))]
+      : [{ kind: 'cover' }, ...d.signs.slice(0, 12).map((item, i) => ({ kind: 'sign', item, i }))];
+  }
+
+  function draw(canvas, d, chosen, S, page = { kind: 'cover' }) {
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
     const { v, seed } = chosen;
@@ -483,6 +502,7 @@ window.Duang = (() => {
     const T = THEMES[v.theme];
     ctx.clearRect(0, 0, W, H);
     drawBackground(ctx, v, rng, T);
+    if (page.kind !== 'cover') { drawDetail(ctx, v, T, d, page, S); return; }
     const kind = d.type === 'zodiac' ? 'zodiac' : d.type === 'week' ? 'week' : 'day', L = LAYOUT[kind];
     drawHeader(ctx, v, T, d, L);
     if (kind === 'zodiac') drawZodiacGrid(ctx, v, T, d.signs.slice(0, 12), L);
@@ -493,7 +513,8 @@ window.Duang = (() => {
       const rowH = (bottom - top - gap * (rows.length - 1)) / rows.length;
       rows.forEach((item, i) => drawRow(ctx, v, T, item, i, top + i * (rowH + gap), rowH));
     }
-    drawFooter(ctx, v, T, S, L.M);
+    const next = d.type === 'week' ? 'ดูคำทำนายแต่ละวันในภาพถัดไป' : 'ดูคำทำนายแต่ละราศีในภาพถัดไป';
+    drawFooter(ctx, v, T, isSet(d) ? { ...S, cta: next, arrow: 'right' } : S, L.M);
   }
 
   // ---------- weekly: 3 cards over 4, each with the reading plus love / single / health ----------
@@ -535,23 +556,25 @@ window.Duang = (() => {
       const t = String(p.text || '').trim();
       if (!t) return;
       const pw = p.label ? even || pws[i] : 0;
-      blocks.push({ label: p.label, pw, color: p.color, lines: wrapThai(ctx, t, w, pw ? pw + s * 0.4 : 0) });
+      blocks.push({ label: p.label, pw, color: p.color, lines: wrapThai(ctx, t, w, pw && !opt.stacked ? pw + s * 0.4 : 0) });
     });
-    const lh = s * (opt.lh || 1.46), gap = s * (opt.gap ?? 0.5);
-    return { blocks, lh, gap, height: blocks.reduce((a, b) => a + b.lines.length * lh, 0) + gap * Math.max(0, blocks.length - 1) };
+    const lh = s * (opt.lh || 1.46), gap = s * (opt.gap ?? 0.5), stacked = !!opt.stacked;
+    const rows = b => b.lines.length + (stacked && b.label ? 1 : 0);
+    return { blocks, lh, gap, stacked, height: blocks.reduce((a, b) => a + rows(b) * lh, 0) + gap * Math.max(0, blocks.length - 1) };
   }
 
-  // Draws laid-out blocks from (x, y), spreading spare height between paragraphs (at most `maxGap`).
+  // Draws laid-out blocks from (x, y), spreading spare height between paragraphs (at most `maxGap`);
+  // a lone paragraph is centred in the body instead. With `stacked` the label sits on its own line.
   function drawBlocks(ctx, B, x, y, s, dc, bodyH, maxGap) {
     const gap = B.blocks.length > 1 ? Math.min(maxGap, B.gap + (bodyH - B.height) / (B.blocks.length - 1)) : 0;
-    let ty = y;
+    let ty = B.blocks.length === 1 ? y + Math.max(0, (bodyH - B.height) / 2) : y;
     B.blocks.forEach(bk => {
       let ix = 0;
       if (bk.label) {
         const ph = s * 1.24, pcy = ty + B.lh / 2;
         rr(ctx, x, pcy - ph / 2, bk.pw, ph, ph / 2); ctx.fillStyle = rgba(dc, 0.22); ctx.fill();
         text(ctx, bk.label, x + bk.pw / 2, pcy + s * 0.32, F.k5, s * 0.9, dc, 'center');
-        ix = bk.pw + s * 0.4;
+        if (B.stacked) ty += B.lh; else ix = bk.pw + s * 0.4;
       }
       bk.lines.forEach((ln, li) => {
         text(ctx, ln, x + (li ? 0 : ix), ty + B.lh / 2 + s * 0.36, F.k4, s, bk.color);
@@ -592,22 +615,26 @@ window.Duang = (() => {
   const WEEK_PARTS = [['love', 'ความรัก'], ['single', 'คนโสด'], ['health', 'สุขภาพ']];
   const weekParts = it => [{ text: it.reading, color: '#FFFFFF' }, ...WEEK_PARTS.map(([k, label]) => ({ label, text: it[k], color: '#DCDFF5' }))];
 
+  // A set's cover shows each day's one-line summary; the older single-image week shows the short readings.
+  const coverParts = it => it.summary ? [{ text: it.summary, color: '#FFFFFF' }] : weekParts(it);
+
   function drawWeekGrid(ctx, v, T, items, L) {
     const M = L.M, gap = 14, band = 58, pad = 16;
     const top = L.top, bottom = H - M - 72 - 16;
     const rowH = (bottom - top - gap) / 2;
+    const summary = items.some(it => it.summary), foot = summary ? 44 : 0;
     [[0, 3], [3, 7]].forEach(([a, b], r) => {
       const row = items.slice(a, b), n = row.length;
       const w = (W - 2 * M - gap * (n - 1)) / n, y = top + r * (rowH + gap);
-      const bodyH = rowH - band - pad * 2;
+      const bodyH = rowH - band - pad * 2 - foot;
       // one text size per row, the largest at which every card in the row fits
-      let s = 24;
-      row.forEach(it => { while (s > 14 && textBlocks(ctx, weekParts(it), w - pad * 2, s).height > bodyH) s -= 0.5; });
-      row.forEach((it, k) => drawWeekCard(ctx, v, T, it, a + k, M + k * (w + gap), y, w, rowH, s, band, pad));
+      let s = summary ? 34 : 24;
+      row.forEach(it => { while (s > 14 && textBlocks(ctx, coverParts(it), w - pad * 2, s).height > bodyH) s -= 0.5; });
+      row.forEach((it, k) => drawWeekCard(ctx, v, T, it, a + k, M + k * (w + gap), y, w, rowH, s, band, pad, foot));
     });
   }
 
-  function drawWeekCard(ctx, v, T, item, i, x, y, w, h, s, band, pad) {
+  function drawWeekCard(ctx, v, T, item, i, x, y, w, h, s, band, pad, foot) {
     const dayName = String(item.day || '').trim();
     const dc = DAY_COLORS[dayName] || DAY_ORDER[i % 7];
     const b = drawCardShell(ctx, v, T, x, y, w, h, dc, band);
@@ -619,8 +646,26 @@ window.Duang = (() => {
     const lx = b.x + (b.w - (wa + 8 + wn)) / 2;
     text(ctx, pre, lx, bcy + ns * 0.36, F.k5, ns * 0.56, NAVY);
     text(ctx, dayName, lx + wa + 8, bcy + ns * 0.4, F.display, ns, NAVY);
-    const bodyH = h - band - pad * 2;
-    drawBlocks(ctx, textBlocks(ctx, weekParts(item), w - pad * 2, s), x + pad, y + band + pad, s, dc, bodyH, s * 1.4);
+    const bodyH = h - band - pad * 2 - foot;
+    drawBlocks(ctx, textBlocks(ctx, coverParts(item), w - pad * 2, s), x + pad, y + band + pad, s, dc, bodyH, s * 1.4);
+    if (foot) drawLucky(ctx, item, x + pad, w - pad * 2, y + h - foot - 4, foot, Math.min(18, w / 15), 25);
+  }
+
+  // lucky color (dot + name) on the left and lucky number on the right, under a thin divider at fy
+  function drawLucky(ctx, item, x, w, fy, foot, cs, ns) {
+    ctx.strokeStyle = rgba(SUB, 0.16); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, fy); ctx.lineTo(x + w, fy); ctx.stroke();
+    const base = fy + foot / 2 + cs * 0.38, dotR = cs * 0.4;
+    const cname = String(item.luckyColorName || '').trim();
+    ctx.fillStyle = validHex(item.luckyColorHex) ? hexOf(item.luckyColorHex) : GOLD;
+    ctx.beginPath(); ctx.arc(x + dotR, base - cs * 0.34, dotR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+    text(ctx, cname ? `สี${cname}` : '', x + dotR * 2 + 7, base, F.k4, cs, SUB, 'left', w * 0.5);
+    const num = String(item.luckyNumber ?? '').trim();
+    if (num) {
+      const nw = text(ctx, num, x + w, base + ns * 0.08, F.display, ns, GOLD, 'right');
+      text(ctx, 'เลขมงคล', x + w - nw - 8, base, F.k4, cs, SUB, 'right');
+    }
   }
 
   // ---------- 12 signs: 3 × 4 cards ----------
@@ -651,8 +696,8 @@ window.Duang = (() => {
     const w = (W - 2 * M - gap * (cols - 1)) / cols, h = (bottom - top - gap * (rows - 1)) / rows;
     const bodyH = h - band - foot - pad * 1.5;
     // one text size for all twelve cards
-    let s = 23;
-    items.forEach(it => { while (s > 13 && textBlocks(ctx, zodiacParts(it), w - pad * 2, s, ZODIAC_OPT).height > bodyH) s -= 0.5; });
+    let s = items.some(it => it.summary) ? 25 : 23;
+    items.forEach(it => { while (s > 13 && textBlocks(ctx, signCoverParts(it), w - pad * 2, s, ZODIAC_OPT).height > bodyH) s -= 0.5; });
     items.forEach((it, i) => drawZodiacCard(ctx, v, T, it, i, M + (i % cols) * (w + gap), top + Math.floor(i / cols) * (h + gap), w, h, s, band, pad, foot));
   }
 
@@ -673,24 +718,72 @@ window.Duang = (() => {
 
     const bodyY = y + band + pad * 0.75;
     const bodyH = h - band - foot - pad * 1.5;
-    drawBlocks(ctx, textBlocks(ctx, zodiacParts(item), w - pad * 2, s, ZODIAC_OPT), x + pad, bodyY, s, dc, bodyH, s * 0.9);
+    drawBlocks(ctx, textBlocks(ctx, signCoverParts(item), w - pad * 2, s, ZODIAC_OPT), x + pad, bodyY, s, dc, bodyH, s * 0.9);
+    drawLucky(ctx, item, x + pad, w - pad * 2, y + h - foot, foot, Math.min(18, s * 0.86), 25);
+  }
+  const signCoverParts = it => it.summary ? [{ text: it.summary, color: '#E6E8F8' }] : zodiacParts(it);
 
-    // lucky color and number along the bottom
-    const fy = y + h - foot;
-    ctx.strokeStyle = rgba(SUB, 0.16); ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(x + pad, fy); ctx.lineTo(x + w - pad, fy); ctx.stroke();
-    const base = fy + foot / 2 + 7, cs = Math.min(18, s * 0.86);
-    const cname = String(item.luckyColorName || '').trim();
-    const dotR = 7;
-    ctx.fillStyle = validHex(item.luckyColorHex) ? hexOf(item.luckyColorHex) : GOLD;
-    ctx.beginPath(); ctx.arc(x + pad + dotR, base - cs * 0.34, dotR, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
-    text(ctx, cname ? `สี${cname}` : '', x + pad + dotR * 2 + 7, base, F.k4, cs, SUB, 'left', w * 0.48);
-    const num = String(item.luckyNumber ?? '').trim();
-    if (num) {
-      const nw = text(ctx, num, x + w - pad, base + 2, F.display, 25, GOLD, 'right');
-      text(ctx, 'เลขมงคล', x + w - pad - nw - 8, base, F.k4, cs, SUB, 'right');
+  // ---------- one birth day or one sign per image, with the full reading ----------
+  const DETAIL = {
+    day: [['work', 'การงาน'], ['money', 'การเงิน'], ['love', 'ความรัก'], ['single', 'คนโสด'], ['health', 'สุขภาพ'], ['tip', 'ข้อแนะนำ']],
+    sign: [['work', 'การงาน'], ['money', 'การเงิน'], ['love', 'ความรัก'], ['health', 'สุขภาพ'], ['tip', 'ข้อแนะนำ']]
+  };
+
+  // the sign's glyph in a large ring where the mascot usually stands; returns its left edge
+  function drawGlyphDisc(ctx, glyph, dc, L) {
+    const r = 104, cx = W - L.M - r - 6, cy = (L.badgeY + L.top) / 2 + 4;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.7);
+    g.addColorStop(0, rgba(dc, 0.32)); g.addColorStop(1, rgba(dc, 0));
+    ctx.fillStyle = g; ctx.fillRect(cx - r * 1.7, cy - r * 1.7, r * 3.4, r * 3.4);
+    ctx.fillStyle = NAVY; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = dc; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = rgba(GOLD, 0.5); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, r + 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = SYMBOL_FONT(r * 1.15); ctx.fillStyle = dc; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(glyph + '︎', cx, cy + 4);
+    ctx.textBaseline = 'alphabetic';
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    sparkle(ctx, cx - r - 4, cy - r + 14, 13); ctx.stroke();
+    sparkle(ctx, cx + r + 2, cy + r - 20, 9); ctx.stroke();
+    return cx - r - 16;
+  }
+
+  function drawDetail(ctx, v, T, d, page, S) {
+    const L = LAYOUT.detail, M = L.M, it = page.item, day = page.kind === 'day';
+    let dc, title, sub, glyph;
+    if (day) {
+      const n = String(it.day || '').trim();
+      dc = DAY_COLORS[n] || DAY_ORDER[page.i % 7]; title = n; sub = `ดวงประจำสัปดาห์ ${d.date || ''}`;
+    } else {
+      const sg = SIGNS[SIGN_INDEX[it.sign] ?? page.i % 12];
+      dc = sg[3]; glyph = sg[1]; title = sg[0]; sub = `ดวงประจำเดือน${d.date || ''} · ${sg[2]}`;
     }
+    drawBadge(ctx, v, day ? 'ดูดวงรายสัปดาห์' : 'ดูดวงรายเดือน', M, L.badgeY);
+    let textMax = W - M * 2 - 70;
+    if (!day) textMax = drawGlyphDisc(ctx, glyph, dc, L) - M;
+    else if (v.mascot !== 'none' && mascots[v.mascot]) textMax = drawMascot(ctx, mascots[v.mascot], L) - M - 12;
+    else drawIcon(ctx, v, T, L);
+    drawTitle(ctx, day ? 'คนเกิดวัน' : 'ราศี', title, dc, L, textMax);
+    text(ctx, sub, M, L.subY, F.k5, 29, SUB, 'left', textMax);
+
+    const x = M, y = L.top, w = W - M * 2, h = H - M - 72 - 22 - y, pad = 34, foot = 70, R = 24;
+    rr(ctx, x, y, w, h, R); ctx.fillStyle = T.card; ctx.fill();
+    ctx.save(); rr(ctx, x, y, w, h, R); ctx.clip();
+    if (v.card === 'glow') {
+      const g = ctx.createLinearGradient(0, y, 0, y + h * 0.6);
+      g.addColorStop(0, rgba(dc, 0.16)); g.addColorStop(1, rgba(dc, 0));
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    }
+    ctx.fillStyle = dc; ctx.fillRect(x, y, w, 7);
+    ctx.restore();
+    if (v.card === 'outline') { rr(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, R); ctx.strokeStyle = rgba(dc, 0.45); ctx.lineWidth = 1.5; ctx.stroke(); }
+
+    const parts = DETAIL[page.kind].map(([k, label]) => ({ label, text: it[k], color: k === 'tip' ? '#F6E2A6' : '#EEF0FB' }));
+    const opt = { lh: 1.48, gap: 0.55, stacked: true }, bodyH = h - pad * 2 - foot, tw = w - pad * 2;
+    let s = 36;
+    while (s > 18 && textBlocks(ctx, parts, tw, s, opt).height > bodyH) s -= 0.5;
+    drawBlocks(ctx, textBlocks(ctx, parts, tw, s, opt), x + pad, y + pad + 4, s, dc, bodyH, s * 1.3);
+    drawLucky(ctx, it, x + pad, tw, y + h - foot, foot, 26, 40);
+    drawFooter(ctx, v, T, { ...S, cta: '' }, M);
   }
 
   // ---------- public: parse Claude's answer ----------
@@ -741,7 +834,8 @@ window.Duang = (() => {
   // The AI writes the short post caption, then this marker line, then the full reading for the first comment.
   const NO_COMMENT = ['warn', 'ไม่มีคำทำนายฉบับเต็มสำหรับคอมเมนต์ ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง'];
   const COMMENT_MARK = /^[ \t]*=+[ \t]*คอมเมนต์[ \t]*=+[ \t]*$/m;
-  function parse(raw) {
+  // opt.pageName goes into the caption the app writes for weekly and monthly sets.
+  function parse(raw, opt = {}) {
     const msgs = [];
     const s = String(raw || '').trim().replace(/\*\*|__/g, '');
     let obj = null, caption = '', comment = '';
@@ -759,14 +853,19 @@ window.Duang = (() => {
     if (mark) { comment = cleanCaption(caption.slice(mark.index + mark[0].length)); caption = caption.slice(0, mark.index); }
     caption = cleanCaption(caption);
     if (!obj) return { msgs: [['err', 'ยังหาดวงในข้อความที่วางไม่เจอ ลองกลับไปที่แอป AI แล้วกดคัดลอกคำตอบทั้งหมดอีกครั้ง']] };
-    if (obj.type === 'zodiac' || Array.isArray(obj.signs)) return parseZodiac(obj, caption, comment, msgs);
+    if (obj.type === 'zodiac' || Array.isArray(obj.signs)) return parseZodiac(obj, caption, comment, msgs, opt);
     if (!Array.isArray(obj.days) || obj.days.length < 7) return { msgs: [['err', 'ดวงยังไม่ครบ 7 วัน (อาทิตย์ถึงเสาร์) ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']] };
-    if (obj.type === 'week' || obj.days.some(x => x && x.reading)) {
-      // weekly: no ratings; the image has the short reading and the comment the full one
+    if (obj.type === 'week' || obj.days.some(x => x && (x.reading || x.summary))) {
       obj.type = 'week'; obj.days = obj.days.slice(0, 7);
-      obj.days.forEach(it => ['reading', 'love', 'single', 'health'].forEach(k => { if (typeof it[k] === 'string') it[k] = femaleVoice(it[k]); }));
-      if (caption) caption = ensureDayTag(caption, '', '#ดวงประจำสัปดาห์');
+      obj.days.forEach(it => TEXT_KEYS.forEach(k => { if (typeof it[k] === 'string') it[k] = femaleVoice(it[k]); }));
       if (!obj.date) msgs.push(['warn', 'ไม่มีช่วงวันที่ ภาพจะไม่มีวันที่']);
+      if (isSet(obj)) {
+        // a set of 8 images: the app writes the detailed caption itself, so there is no comment
+        obj.days.forEach((it, i) => { if (!it.work || !it.summary) msgs.push(['warn', `${it.day || `ช่อง ${i + 1}`}: คำทำนายไม่ครบ`]); });
+        return { obj, caption: composeCaption(obj, opt.pageName), comment: '', msgs };
+      }
+      // the older single-image week: short reading in the image, the full one in the comment
+      if (caption) caption = ensureDayTag(caption, '', '#ดวงประจำสัปดาห์');
       obj.days.forEach((it, i) => {
         const n = it.day || `ช่อง ${i + 1}`;
         if (!String(it.reading || '').trim()) msgs.push(['warn', `${n}: ไม่มีคำทำนาย`]);
@@ -790,11 +889,23 @@ window.Duang = (() => {
     return { obj, caption, comment, msgs };
   }
 
-  // 12 signs: short lines in the image, the full reading in the comment.
-  function parseZodiac(obj, caption, comment, msgs) {
+  // 12 signs. Monthly (the current format) is a set of 13 images with the detailed caption written by
+  // the app; the older daily and weekly ones had short lines in the image and the reading in the comment.
+  function parseZodiac(obj, caption, comment, msgs, opt) {
     if (!Array.isArray(obj.signs) || obj.signs.length < 12) return { msgs: [['err', 'ดวงยังไม่ครบ 12 ราศี ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']] };
-    obj.type = 'zodiac'; obj.period = obj.period === 'week' ? 'week' : 'day'; obj.signs = obj.signs.slice(0, 12);
+    obj.type = 'zodiac'; obj.period = ['day', 'week', 'month'].includes(obj.period) ? obj.period : 'day'; obj.signs = obj.signs.slice(0, 12);
     if (!obj.date) msgs.push(['warn', 'ไม่มีวันที่ ภาพจะไม่มีวันที่']);
+    if (obj.period === 'month') {
+      obj.signs.forEach((it, i) => {
+        it.sign = String(it.sign || '').trim().replace(/^ราศี/, '');
+        TEXT_KEYS.forEach(k => { if (typeof it[k] === 'string') it[k] = femaleVoice(it[k]); });
+        const n = it.sign || `ราศีที่ ${i + 1}`;
+        if (!(it.sign in SIGN_INDEX)) msgs.push(['warn', `${n}: ไม่รู้จักชื่อราศีนี้ ใช้ตามลำดับแทน`]);
+        if (!it.work || !it.summary) msgs.push(['warn', `${n}: คำทำนายไม่ครบ`]);
+        if (it.luckyColorHex && !validHex(it.luckyColorHex)) msgs.push(['warn', `${n}: รหัสสีไม่ถูกต้อง ใช้สีทองแทน`]);
+      });
+      return { obj, caption: composeCaption(obj, opt.pageName), comment: '', msgs };
+    }
     const long = obj.signs.filter(it => ZODIAC_PARTS.some(([k]) => thaiLen(it[k] || '') > 26)).map(it => String(it.sign || '').replace(/^ราศี/, ''));
     if (long.length) msgs.push(['warn', `คำทำนายของ ${long.join(' ')} ยาวไป ตัวหนังสือในภาพจะเล็ก พิมพ์บอก AI ว่า "ขอสั้นลง ช่องละไม่เกิน 20 ตัวอักษร" แล้วคัดลอกคำตอบใหม่มาวาง`]);
     obj.signs.forEach((it, i) => {
@@ -809,6 +920,28 @@ window.Duang = (() => {
     return { obj, caption, comment, msgs };
   }
 
+  const TEXT_KEYS = ['reading', 'summary', 'work', 'money', 'love', 'single', 'health', 'tip'];
+  const DAY_EMOJI = { 'อาทิตย์': '🔴', 'จันทร์': '🟡', 'อังคาร': '🩷', 'พุธ': '🟢', 'พฤหัส': '🟠', 'พฤหัสบดี': '🟠', 'ศุกร์': '🔵', 'เสาร์': '🟣' };
+
+  // Weekly and monthly sets: the app writes the detailed caption from the JSON, so the layout never
+  // drifts and the AI does not have to write every reading twice.
+  function composeCaption(d, pageName) {
+    const week = d.type === 'week';
+    const lucky = it => [it.luckyNumber && `เลขมงคล ${it.luckyNumber}`, it.luckyColorName && `สีมงคล ${it.luckyColorName}`].filter(Boolean).join(' · ');
+    const section = (head, it, parts) => [head,
+      ...parts.filter(([k]) => String(it[k] || '').trim()).map(([k, label]) => `${label}: ${String(it[k]).trim()}`),
+      lucky(it)].filter(Boolean).join('\n');
+    const sections = week
+      ? d.days.slice(0, 7).map((it, i) => { const n = String(it.day || '').trim() || DAYS[i]; return section(`${DAY_EMOJI[n] || '⭐'} คนเกิดวัน${n}`, it, DETAIL.day); })
+      : d.signs.slice(0, 12).map((it, i) => { const sg = SIGNS[SIGN_INDEX[it.sign] ?? i % 12]; return section(`${sg[1]} ราศี${sg[0]} (${sg[2]})`, it, DETAIL.sign); });
+    const first = week ? '#ดวงประจำสัปดาห์' : '#ดวง12ราศี';
+    const given = (Array.isArray(d.hashtags) ? d.hashtags : String(d.hashtags || '').split(/\s+/)).map(t => String(t).trim()).filter(t => /^#\S+$/.test(t));
+    const tags = [...new Set([first, ...given, week ? '#ดวงรายสัปดาห์' : '#ดวงรายเดือน', '#ดูดวง'])].slice(0, 5);
+    const intro = String(d.intro || '').trim() || (week ? `ดวงประจำสัปดาห์ ${d.date || ''} มาแล้วค่ะ` : `ดวง 12 ราศีประจำเดือน${d.date || ''} มาแล้วค่ะ`);
+    const close = `ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ\nติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุก${week ? 'สัปดาห์' : 'เดือน'}นะคะ`;
+    return formatCaption([intro, ...sections, close, tags.join(' ')].join('\n\n'));
+  }
+
   // ---------- public: caption checks (Facebook) ----------
   const CAPTION_RULES = [
     ['err', /(พิมพ์|คอมเมนต์|คอมเม้น|เมนต์|เม้น)\s*["“'”]?\s*(สาธุ|รับ|ขอ|99|๙๙|เอา)/, 'ขอให้คนพิมพ์หรือคอมเมนต์เพื่อรับโชค Facebook จะลดการมองเห็นโพสต์'],
@@ -818,7 +951,7 @@ window.Duang = (() => {
     ['err', /(หวย|เลขเด็ด|สลาก|ลอตเตอรี่|ล็อตเตอรี่|เลขท้าย|แทงเลข|พนัน|บาคาร่า|คาสิโน)/, 'พูดถึงหวยหรือการพนัน เสี่ยงผิดกฎ Facebook'],
     ['warn', /(100\s*%|การันตี|รับประกัน|รวยแน่|ถูกแน่|ได้แน่นอน)/, 'มีคำรับประกันผล ควรเลี่ยง'],
     ['warn', /(โอน|ค่าครู|ทักแชท|inbox|ราคา\s*\d|บาท)/i, 'มีเรื่องเงินหรือชวนทักแชทซื้อของ ควรเลี่ยง'],
-    ['warn', /(ลงทุน|หุ้น|คริปโต|crypto|เทรด|รักษา|หายป่วย)/i, 'มีคำแนะนำเรื่องลงทุนหรือสุขภาพ ควรเลี่ยง']
+    ['warn', /(ลงทุน|หุ้น|คริปโต|crypto|เทรด|การรักษา|รักษาโรค|หายป่วย|กินยา)/i, 'มีคำแนะนำเรื่องลงทุนหรือสุขภาพ ควรเลี่ยง']
   ];
   function checkCaption(t) {
     const out = [];
@@ -826,8 +959,8 @@ window.Duang = (() => {
     CAPTION_RULES.forEach(([k, re, msg]) => { const m = t.match(re); if (m) out.push([k, `${msg} (คำว่า "${m[0]}")`]); });
     const tags = t.match(/#[^\s#]+/g) || [];
     if (tags.length > 5) out.push(['warn', `แฮชแท็กเยอะไป (${tags.length} อัน) ใช้ 3–5 อันพอ`]);
-    const longPara = t.split(/\n\s*\n/).filter(p => p.replace(/\s/g, '').length > 260);
-    if (longPara.length) out.push(['warn', 'มีย่อหน้าที่ยาวเกินไป อ่านยากบนมือถือ']);
+    if (t.split('\n').some(l => l.length > 300)) out.push(['warn', 'มีบรรทัดที่ยาวเกินไป อ่านยากบนมือถือ']);
+    if (t.length > FB_CAPTION_MAX) out.push(['err', `แคปชันยาว ${t.length.toLocaleString()} ตัวอักษร เกินที่ Facebook รับ (${FB_CAPTION_MAX.toLocaleString()})`]);
     if (!/(ความบันเทิง|วิจารณญาณ)/.test(t)) out.push(['warn', 'ยังไม่มีข้อความ "เพื่อความบันเทิง โปรดใช้วิจารณญาณ"']);
     if (!out.length) out.push(['ok', 'แคปชันปลอดภัย โพสต์ได้']);
     return out;
@@ -836,8 +969,12 @@ window.Duang = (() => {
   function checkComment(t) {
     const out = [];
     CAPTION_RULES.forEach(([k, re, msg]) => { const m = String(t || '').match(re); if (m) out.push([k, `คอมเมนต์: ${msg} (คำว่า "${m[0]}")`]); });
+    const n = String(t || '').length;
+    if (n > FB_COMMENT_MAX) out.push(['err', `คอมเมนต์ยาว ${n.toLocaleString()} ตัวอักษร เกินที่ Facebook รับ (${FB_COMMENT_MAX.toLocaleString()}) ลองบอก AI ว่า "ขอคำทำนายฉบับเต็มให้สั้นลง" แล้วคัดลอกคำตอบใหม่มาวาง`]);
     return out;
   }
+  // Facebook's limits: a comment takes 8,000 characters, a post 63,206.
+  const FB_COMMENT_MAX = 8000, FB_CAPTION_MAX = 63206;
 
   // ---------- public: prompt for Claude ----------
   function thaiDate(dt) {
@@ -879,45 +1016,6 @@ ${DAY_HEAD}
 })}`;
   }
 
-  // `dt` is the day itself, or the Monday that starts the week.
-  function buildZodiacPrompt(dt, pageName, period) {
-    const { wd, ds } = thaiDate(dt);
-    const week = period === 'week', date = week ? weekRange(dt) : ds;
-    const when = week ? `ประจำสัปดาห์ ${date}` : `ประจำวัน${wd}ที่ ${ds}`;
-    return `เขียนดูดวง 12 ราศี${when}
-
-ตอบเป็น JSON ก่อน ตามรูปแบบนี้เป๊ะๆ (ใส่ใน code block)
-{
-  "type": "zodiac",
-  "period": "${week ? 'week' : 'day'}",
-  "date": "${date}",${week ? '' : `\n  "dayTitle": "${wd}",`}
-  "signs": [
-    { "sign": "เมษ", "work": "...", "money": "...", "love": "...", "health": "...", "luckyNumber": "..", "luckyColorName": "..", "luckyColorHex": "#RRGGBB" },
-    ... ให้ครบ 12 ราศีตามลำดับ เมษ พฤษภ มิถุน กรกฎ สิงห์ กันย์ ตุลย์ พิจิก ธนู มังกร กุมภ์ มีน (ใช้ชื่อตามนี้เป๊ะๆ)
-  ]
-}
-
-กติกาของ JSON
-- work money love health แต่ละช่องเป็นวลีสั้นๆ ไม่เกิน 20 ตัวอักษร (ไม่นับสระบน-ล่างและวรรณยุกต์) อ่านแล้วเข้าใจทันที${week ? ' เป็นภาพรวมของทั้งสัปดาห์' : ''}
-- health เป็นข้อควรระวังทั่วไป ห้ามแนะนำยาหรือการรักษา และห้ามทำนายโรคร้ายแรง
-- แต่ละราศีใช้คำและโทนต่างกัน มีทั้งเรื่องดีและเรื่องที่ควรระวัง น้ำเสียงอบอุ่น ไม่ทำนายเรื่องน่ากลัว
-- ห้ามเขียนถึงโชคจากการเสี่ยงดวง หวย หรือการพนัน
-- luckyNumber เป็นตัวเลข 1–2 หลัก, luckyColorName ชื่อสีภาษาไทยคำเดียวสั้นๆ, luckyColorHex รหัสสีของสีนั้น
-
-${postParts(pageName, {
-  unit: 'ราศี', follow: week ? 'สัปดาห์' : 'วัน', opening: `ดวง 12 ราศี${when}`, commentTitle: `ดวง 12 ราศี${when}`,
-  tags: ['#ดวง12ราศี', '#ดูดวง', week ? '#ดวงรายสัปดาห์' : '#ดวงรายวัน'],
-  sections: `แล้วแยกเป็นช่วงของแต่ละราศี ครบ 12 ราศี เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
-♈ ราศีเมษ (13 เม.ย. – 13 พ.ค.)   (ใช้สัญลักษณ์และช่วงวันที่ตามนี้: ${SIGNS.map(s => `${s[1]} ${s[0]} ${s[2]}`).join(', ')})
-งาน: 1–2 ประโยค
-เงิน: 1–2 ประโยค
-ความรัก: 1–2 ประโยค
-สุขภาพ: 1 ประโยค
-สีมงคล .. · เลขมงคล ..
-(ข้อมูลต้องตรงกับ JSON แต่ละเอียดกว่าในภาพ)`
-})}`;
-  }
-
   const DAY_HEAD = '🔴 คนเกิดวันอาทิตย์   (ใช้ 🔴 อาทิตย์, 🟡 จันทร์, 🩷 อังคาร, 🟢 พุธ, 🟠 พฤหัส, 🔵 ศุกร์, 🟣 เสาร์)';
   // Every post: a short caption pointing to the comments, the marker line, then the full reading for the first comment.
   function postParts(pageName, { unit, follow, opening, commentTitle, tags, sections }) {
@@ -943,18 +1041,32 @@ ${sections}
 ${promptRules(`ใช้อีโมจิเฉพาะหัวข้อแต่ละ${unit}และ 👇 ในแคปชัน`)}`;
   }
 
-  // Voice and Facebook rules shared by the daily and weekly prompts.
-  function promptRules(emoji) {
-    return `ผู้เขียนเป็นผู้หญิง ใช้คำลงท้าย "ค่ะ" หรือ "คะ" (คำถาม) เท่านั้น ห้ามใช้ "ครับ" และห้ามแทนตัวเองว่า "ผม"
-เว้นบรรทัดว่าง 1 บรรทัดหลังจบแต่ละส่วนเสมอ
-
-ข้อห้าม (ผิดกฎหรือ Facebook ลดการมองเห็น)
+  const VOICE = 'ผู้เขียนเป็นผู้หญิง ใช้คำลงท้าย "ค่ะ" หรือ "คะ" (คำถาม) เท่านั้น ห้ามใช้ "ครับ" และห้ามแทนตัวเองว่า "ผม"';
+  const BANS = `ข้อห้าม (ผิดกฎหรือ Facebook ลดการมองเห็น)
 - ห้ามขอให้พิมพ์ "สาธุ" หรือคอมเมนต์เพื่อรับโชค ห้ามชวนแชร์ แท็กเพื่อน หรือกดไลก์เพื่อรับดวง
 - ห้ามพูดถึงหวย เลขเด็ด สลาก หรือการพนัน และห้ามโยงเลขมงคลกับการเสี่ยงโชคด้วยเงิน
 - ห้ามรับประกันผล (เช่น รวยแน่ 100%) ห้ามชวนซื้อของแก้ดวงหรือโอนเงิน
-- ห้ามให้คำแนะนำเจาะจงเรื่องการลงทุนหรือสุขภาพ
+- ห้ามให้คำแนะนำเจาะจงเรื่องการลงทุนหรือสุขภาพ`;
+  // Voice and Facebook rules for the daily prompt, which has the AI lay out the caption and comment.
+  function promptRules(emoji) {
+    return `${VOICE}
+เว้นบรรทัดว่าง 1 บรรทัดหลังจบแต่ละส่วนเสมอ
+
+${BANS}
 - ${emoji} ไม่ใส่อีโมจิรกทุกบรรทัด ไม่ใช้เครื่องหมาย !!! ซ้ำๆ`;
   }
+  // The weekly and monthly prompts ask for JSON only; the app lays out the caption from it.
+  const JSON_ONLY = 'ตอบเป็น JSON อย่างเดียว ใส่ใน code block เดียว ไม่ต้องเขียนอะไรเพิ่มก่อนหรือหลัง JSON (แอปจะจัดแคปชันให้เอง)';
+  const JSON_RULES = `- แต่ละ{unit}มีทั้งเรื่องดีและเรื่องที่ควรระวัง ใช้คำขึ้นต้นและโทนต่างกัน อย่าใช้รูปประโยคซ้ำกัน
+- น้ำเสียงอบอุ่น ให้กำลังใจ ไม่ทำนายเรื่องน่ากลัว เช่น ความตาย อุบัติเหตุร้ายแรง คดีความ การหย่าร้าง
+- health เป็นข้อควรระวังทั่วไป เช่น พักผ่อน ความเครียด ห้ามแนะนำยาหรือการรักษา และห้ามทำนายโรคร้ายแรง
+- money พูดเรื่องรายรับ รายจ่าย และการออมได้ แต่ไม่ใช้คำว่าลงทุน หุ้น หรือคริปโต
+- luckyNumber เป็นตัวเลข 1–2 หลัก, luckyColorName ชื่อสีภาษาไทยคำเดียวสั้นๆ, luckyColorHex รหัสสีของสีนั้น
+- ไม่ใส่อีโมจิ และข้อความใน JSON ห้ามขึ้นบรรทัดใหม่
+
+${VOICE}
+
+${BANS}`;
 
   // Monday to Sunday starting at `start`, e.g. "2 – 8 พฤศจิกายน 2569" or "30 พฤศจิกายน – 6 ธันวาคม 2569".
   function weekRange(start) {
@@ -965,43 +1077,65 @@ ${promptRules(`ใช้อีโมจิเฉพาะหัวข้อแ�
     return `${start.getDate()} – ${b}`;
   }
 
-  function buildWeekPrompt(start, pageName) {
+  function buildWeekPrompt(start) {
     const range = weekRange(start);
-    return `เขียนดูดวงประจำสัปดาห์สำหรับคนเกิดทั้ง 7 วัน (อาทิตย์ถึงเสาร์) ของวันที่ ${range}
+    return `เขียนดูดวงประจำสัปดาห์แบบละเอียด สำหรับคนเกิดทั้ง 7 วัน (อาทิตย์ถึงเสาร์) ของวันที่ ${range}
 
-ตอบเป็น JSON ก่อน ตามรูปแบบนี้เป๊ะๆ (ใส่ใน code block)
+${JSON_ONLY}
 {
   "type": "week",
   "date": "${range}",
+  "intro": "...",
+  "hashtags": ["#ดวงประจำสัปดาห์", "#ดูดวง", "#ดวงรายสัปดาห์"],
   "days": [
-    { "day": "อาทิตย์", "reading": "...", "love": "...", "single": "...", "health": "..." },
+    { "day": "อาทิตย์", "summary": "...", "work": "...", "money": "...", "love": "...", "single": "...", "health": "...", "tip": "...", "luckyNumber": "..", "luckyColorName": "..", "luckyColorHex": "#RRGGBB" },
     ... ให้ครบ 7 รายการตามลำดับ อาทิตย์ จันทร์ อังคาร พุธ พฤหัส ศุกร์ เสาร์ (ใช้ชื่อวันตามนี้เป๊ะๆ)
   ]
 }
 
-กติกาของ JSON
-- reading ภาพรวมเรื่องงานและการเงินของสัปดาห์ 2 ประโยค ยาวราว 60–90 ตัวอักษร
-- love ความรักของคนมีคู่ 1 ประโยค ราว 30–50 ตัวอักษร
-- single ความรักของคนโสด 1 ประโยค ราว 30–50 ตัวอักษร
-- health สุขภาพ 1 ประโยคสั้น ราว 20–40 ตัวอักษร เป็นข้อควรระวังทั่วไป เช่น พักผ่อน ความเครียด ห้ามแนะนำยาหรือการรักษา และห้ามทำนายโรคร้ายแรง
-- แต่ละวันมีทั้งเรื่องดีและเรื่องที่ควรระวัง ใช้คำขึ้นต้นและโทนต่างกัน อย่าใช้รูปประโยคซ้ำกัน
-- น้ำเสียงอบอุ่น ให้กำลังใจ ไม่ทำนายเรื่องน่ากลัว เช่น ความตาย อุบัติเหตุร้ายแรง คดีความ การหย่าร้าง
-- ไม่ต้องใส่ชื่อวันหรือคำว่า "คนเกิดวัน..." ซ้ำในข้อความ
-
-${postParts(pageName, {
-  unit: 'วันเกิด', follow: 'สัปดาห์', opening: `ดวงประจำสัปดาห์ ${range}`, commentTitle: `ดวงประจำสัปดาห์ ${range}`,
-  tags: ['#ดวงประจำสัปดาห์', '#ดูดวง', '#ดวงรายสัปดาห์'],
-  sections: `แล้วแยกเป็นช่วงของแต่ละวันเกิด ครบ 7 วัน เว้นบรรทัดว่างระหว่างช่วง แต่ละช่วงเป็นแบบนี้
-${DAY_HEAD}
-การงาน: 2 ประโยค
-การเงิน: 2 ประโยค
-ความรัก: 1–2 ประโยค (คนมีคู่)
-คนโสด: 1–2 ประโยค
-สุขภาพ: 1 ประโยค
-ข้อแนะนำประจำสัปดาห์: 1 ประโยค
-(เนื้อหาต้องสอดคล้องกับ JSON แต่ละเอียดกว่าในภาพ)`
-})}`;
+กติกา
+- intro ประโยคเปิดโพสต์ 1–2 ประโยค ไม่เกิน 100 ตัวอักษร บอกว่าเป็นดวงประจำสัปดาห์ ${range} และชวนอ่านดวงของวันเกิดตัวเอง
+- summary ภาพรวมของสัปดาห์ 1 ประโยค ไม่เกิน 45 ตัวอักษร (ใช้บนภาพปก)
+- work การงาน และ money การเงิน อย่างละ 2–3 ประโยค ยาวราว 100–160 ตัวอักษร
+- love ความรักของคนมีคู่ และ single ความรักของคนโสด อย่างละ 1–2 ประโยค ยาวราว 60–110 ตัวอักษร
+- health สุขภาพ 1–2 ประโยค ยาวราว 40–90 ตัวอักษร
+- tip ข้อแนะนำประจำสัปดาห์ 1 ประโยคสั้นๆ
+- hashtags 3–5 อัน อันแรกต้องเป็น #ดวงประจำสัปดาห์
+- ไม่ต้องใส่ชื่อวันซ้ำในข้อความ
+${JSON_RULES.replace('{unit}', 'วัน')}`;
   }
 
-  return { W, H, DIMS, loadMascots, chooseVariants, draw, parse, formatCaption, checkCaption, checkComment, buildPrompt, buildWeekPrompt, buildZodiacPrompt, weekRange, thaiDate };
+  const monthLabel = dt => new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric' }).format(dt).replace(/^พ\.ศ\.\s*/, '');
+
+  // `dt` is any day in the month.
+  function buildMonthPrompt(dt) {
+    const month = monthLabel(dt);
+    return `เขียนดูดวง 12 ราศีประจำเดือน${month} แบบละเอียด
+
+${JSON_ONLY}
+{
+  "type": "zodiac",
+  "period": "month",
+  "date": "${month}",
+  "intro": "...",
+  "hashtags": ["#ดวง12ราศี", "#ดูดวง", "#ดวงรายเดือน"],
+  "signs": [
+    { "sign": "เมษ", "summary": "...", "work": "...", "money": "...", "love": "...", "health": "...", "tip": "...", "luckyNumber": "..", "luckyColorName": "..", "luckyColorHex": "#RRGGBB" },
+    ... ให้ครบ 12 ราศีตามลำดับ เมษ พฤษภ มิถุน กรกฎ สิงห์ กันย์ ตุลย์ พิจิก ธนู มังกร กุมภ์ มีน (ใช้ชื่อตามนี้เป๊ะๆ)
+  ]
+}
+
+กติกา
+- intro ประโยคเปิดโพสต์ 1–2 ประโยค ไม่เกิน 100 ตัวอักษร บอกว่าเป็นดวง 12 ราศีประจำเดือน${month} และชวนอ่านดวงของราศีตัวเอง
+- summary ภาพรวมของเดือน 1 ประโยค ไม่เกิน 45 ตัวอักษร (ใช้บนภาพปก)
+- work การงาน และ money การเงิน อย่างละ 2–3 ประโยค ยาวราว 100–160 ตัวอักษร
+- love ความรัก 2 ประโยค ทั้งคนมีคู่และคนโสด ยาวราว 80–140 ตัวอักษร
+- health สุขภาพ 1–2 ประโยค ยาวราว 40–90 ตัวอักษร
+- tip ข้อแนะนำประจำเดือน 1 ประโยคสั้นๆ
+- ห้ามเขียนถึงโชคจากการเสี่ยงดวง หวย หรือการพนัน
+- hashtags 3–5 อัน อันแรกต้องเป็น #ดวง12ราศี
+${JSON_RULES.replace('{unit}', 'ราศี')}`;
+  }
+
+  return { W, H, DIMS, loadMascots, chooseVariants, draw, pages, isSet, parse, composeCaption, formatCaption, checkCaption, checkComment, buildPrompt, buildWeekPrompt, buildMonthPrompt, weekRange, monthLabel, thaiDate };
 })();
