@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chonburi&family=Kanit:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols&text=%E2%99%88%E2%99%89%E2%99%8A%E2%99%8B%E2%99%8C%E2%99%8D%E2%99%8E%E2%99%8F%E2%99%90%E2%99%91%E2%99%92%E2%99%93&display=swap">
 <style>
 /* One column of big numbered steps, thumb-sized buttons; same night-and-gold world as the post image. */
 :root {
@@ -263,6 +264,30 @@ label { font-size: 15px; color: var(--muted); }
 ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกสัปดาห์นะคะ
 
 #ดวงประจำสัปดาห์ #ดูดวง #ดวงรายสัปดาห์`;
+  const SAMPLE_ZODIAC = {
+    type: 'zodiac',
+    signs: [
+      ['เมษ', 'เริ่มงานใหม่ได้ดี', 'รายรับเพิ่มขึ้น', 'คุยกันเข้าใจง่าย', 'พักผ่อนให้พอ', '14', 'แดง', '#E5484D'],
+      ['พฤษภ', 'มีคนช่วยหนุน', 'เก็บเงินได้มากขึ้น', 'ความสัมพันธ์มั่นคง', 'แข็งแรงดี', '28', 'เขียว', '#3FA66B'],
+      ['มิถุน', 'ได้โชว์ฝีมือ', 'ใช้จ่ายให้รอบคอบ', 'เสน่ห์แรง', 'ระวังสายตาล้า', '35', 'เหลือง', '#F5C842'],
+      ['กรกฎ', 'งานคืบหน้าตามแผน', 'การเงินคล่องตัว', 'คนโสดเจอคนถูกใจ', 'ทานข้าวให้ตรงเวลา', '9', 'ฟ้า', '#6EC1F0'],
+      ['สิงห์', 'ผู้ใหญ่เห็นผลงาน', 'มีรายได้พิเศษ', 'ความรักสดใส', 'สดชื่นกระปรี้กระเปร่า', '61', 'ส้ม', '#F29440'],
+      ['กันย์', 'งานละเอียดได้ผลดี', 'แบ่งเก็บไว้บ้าง', 'ใส่ใจกันมากขึ้น', 'ระวังความเครียด', '47', 'เขียวอ่อน', '#A6D45E'],
+      ['ตุลย์', 'งานราบรื่น', 'มีรายได้เสริม', 'เข้าใจกันดี', 'ระวังปวดหลัง', '23', 'ชมพู', '#F28BB0'],
+      ['พิจิก', 'มีโปรเจกต์ใหม่', 'ได้ผลตอบแทนดี', 'ความสัมพันธ์ลึกซึ้ง', 'นอนให้เต็มอิ่ม', '86', 'ม่วง', '#9B7BE0'],
+      ['ธนู', 'มีโอกาสเดินทาง', 'รายได้ดี มีเงินเข้า', 'พบรักต่างถิ่น', 'ระวังอุบัติเหตุเล็กๆ', '52', 'น้ำเงิน', '#3B6FD8'],
+      ['มังกร', 'มั่นคง ก้าวหน้า', 'มีโอกาสเพิ่มพูน', 'ความสัมพันธ์จริงจัง', 'แข็งแรงดี', '17', 'น้ำตาล', '#A0704A'],
+      ['กุมภ์', 'ไอเดียดีได้รับคำชม', 'รายได้หลายทาง', 'คนมีคู่หวานขึ้น', 'ระวังนอนดึก', '40', 'เทา', '#9AA0B5'],
+      ['มีน', 'มีคนช่วยเหลือ', 'ใช้เงินอย่างมีแผน', 'ความรักอบอุ่น', 'ระวังภูมิแพ้', '73', 'น้ำทะเล', '#2BA6A0']
+    ].map(([sign, work, money, love, health, luckyNumber, luckyColorName, luckyColorHex]) => ({ sign, work, money, love, health, luckyNumber, luckyColorName, luckyColorHex }))
+  };
+  const SAMPLE_ZODIAC_CAPTION = `ดวง 12 ราศีมาแล้วค่ะ
+หาราศีของตัวเองในภาพได้เลยค่ะ
+
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
+ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกวันนะคะ
+
+#ดวง12ราศี #ดูดวง #ดวงรายวัน`;
 
   let saved = store.get('current', null);
   let data = saved?.data || SAMPLE;
@@ -273,7 +298,7 @@ label { font-size: 15px; color: var(--muted); }
   let current = null;
   let pickedDate = new Date();
   let mode = 'day';
-  const isWeek = () => data.type === 'week';
+  const noComment = () => data.type === 'week' || data.type === 'zodiac';
 
   // ---------- toast ----------
   let toastTimer;
@@ -300,12 +325,15 @@ label { font-size: 15px; color: var(--muted); }
   }
   const shortDate = dt => `${dt.getDate()} ${new Intl.DateTimeFormat('th-TH', { month: 'short' }).format(dt)}`;
   function buildModes() {
-    choiceRow($('modes'), [['ดวงรายวัน', 'day'], ['ดวงประจำสัปดาห์<br><small>ลงทุกวันอาทิตย์</small>', 'week']], m => { mode = m; buildDays(); });
+    choiceRow($('modes'), [
+      ['ดวงวันเกิด<br><small>รายวัน</small>', 'day'], ['ดวงวันเกิด<br><small>ประจำสัปดาห์</small>', 'week'],
+      ['ดวง 12 ราศี<br><small>รายวัน</small>', 'zday'], ['ดวง 12 ราศี<br><small>ประจำสัปดาห์</small>', 'zweek']
+    ], m => { mode = m; buildDays(); });
     $('sundayHint').hidden = new Date().getDay() !== 0;
   }
   function buildDays() {
     const today = new Date();
-    if (mode === 'week') {
+    if (mode === 'week' || mode === 'zweek') {
       // weeks run Monday to Sunday; on Sunday "next week" starts tomorrow
       const next = new Date(today); next.setDate(today.getDate() + ((8 - today.getDay()) % 7 || 7));
       const cur = new Date(today); cur.setDate(today.getDate() - (today.getDay() + 6) % 7);
@@ -319,7 +347,9 @@ label { font-size: 15px; color: var(--muted); }
   }
   $('copyPrompt').addEventListener('click', async () => {
     const name = $('pageName').value.trim();
-    const p = mode === 'week' ? Duang.buildWeekPrompt(pickedDate, name) : Duang.buildPrompt(pickedDate, name);
+    const p = mode === 'week' ? Duang.buildWeekPrompt(pickedDate, name)
+      : mode === 'zday' || mode === 'zweek' ? Duang.buildZodiacPrompt(pickedDate, name, mode === 'zweek' ? 'week' : 'day')
+      : Duang.buildPrompt(pickedDate, name);
     try { await navigator.clipboard.writeText(p); toast('คัดลอกคำสั่งแล้ว เปิดแอป AI แล้ววางในช่องพิมพ์ได้เลย', 6000); }
     catch { toast('คัดลอกไม่สำเร็จ ลองกดอีกครั้ง'); }
   });
@@ -329,11 +359,12 @@ label { font-size: 15px; color: var(--muted); }
     el.innerHTML = '';
     list.forEach(([k, t]) => { const p = document.createElement('p'); p.className = 'msg ' + k; p.textContent = t; el.appendChild(p); });
   }
-  const dataTitle = d => d.type === 'week' ? `ได้ดวงประจำสัปดาห์ ${d.date || ''}` : `ได้ดวงวัน${String(d.dayTitle || '').replace(/^วัน/, '')} ${d.date || ''}`;
+  const dataTitle = d => d.type === 'zodiac' ? `ได้ดวง 12 ราศี${d.period === 'week' ? 'ประจำสัปดาห์' : 'รายวัน'} ${d.date || ''}`
+    : d.type === 'week' ? `ได้ดวงประจำสัปดาห์ ${d.date || ''}` : `ได้ดวงวัน${String(d.dayTitle || '').replace(/^วัน/, '')} ${d.date || ''}`;
   function accept(raw) {
     const { obj, caption, comment, msgs } = Duang.parse(raw);
     if (!obj) { showMsgs($('parseMsgs'), msgs); $('s2').classList.remove('done'); return false; }
-    const head = ['ok', `${dataTitle(obj)} ครบ 7 วันแล้ว`];
+    const head = ['ok', `${dataTitle(obj)} ครบ ${obj.type === 'zodiac' ? '12 ราศี' : '7 วัน'}แล้ว`];
     showMsgs($('parseMsgs'), [head, ...msgs.filter(m => m[0] !== 'ok')]);
     $('s2').classList.add('done');
     if (data.date !== obj.date) reroll = 0;
@@ -375,7 +406,7 @@ label { font-size: 15px; color: var(--muted); }
   }
   // the weekly image carries the whole reading, so it has no comment to post
   function syncKind() {
-    $('commentBox').hidden = isWeek(); $('commentSteps').hidden = isWeek();
+    $('commentBox').hidden = noComment(); $('commentSteps').hidden = noComment();
     if (!confirmTimer) $('postBtn').textContent = postLabel();
   }
   function onCaption() {
@@ -416,7 +447,7 @@ label { font-size: 15px; color: var(--muted); }
       try {
         await navigator.share({ files: [file] });
         remember();
-        if (isWeek()) toast(capOk ? 'อย่าลืม: กดค้างช่องข้อความใน Facebook แล้วเลือก "วาง" แคปชัน' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวางด้วย', 7000);
+        if (noComment()) toast(capOk ? 'อย่าลืม: กดค้างช่องข้อความใน Facebook แล้วเลือก "วาง" แคปชัน' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวางด้วย', 7000);
         else toast(capOk ? 'อย่าลืม: วางแคปชันในช่องข้อความ แล้วโพสต์เสร็จค่อยกด "คัดลอกคอมเมนต์"' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวาง แล้วตามด้วยคอมเมนต์', 7000);
       } catch (e) {
         if (e?.name !== 'AbortError') { toast('แชร์ไม่สำเร็จ ลองกด "บันทึกภาพ" แล้วโพสต์จากแอป Facebook แทน', 6000); }
@@ -468,7 +499,7 @@ label { font-size: 15px; color: var(--muted); }
     } catch { fbStatus('err', 'เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่'); }
   });
   let confirmTimer = null;
-  const postLabel = () => isWeek() ? 'โพสต์ลงเพจเลย (ภาพ + แคปชัน)' : 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
+  const postLabel = () => noComment() ? 'โพสต์ลงเพจเลย (ภาพ + แคปชัน)' : 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
   $('postBtn').addEventListener('click', async () => {
     if (!current) return;
     if (isSample) { toast('นี่เป็นภาพตัวอย่าง ทำขั้นที่ 1 และ 2 ก่อน', 5000); return; }
@@ -528,9 +559,14 @@ label { font-size: 15px; color: var(--muted); }
   $('specDesign').addEventListener('click', () => { overrides = {}; Duang.DIMS.forEach(d => overrides[d.key] = d.spec); syncSelects(); render(); });
   $('autoDesign').addEventListener('click', () => { overrides = {}; syncSelects(); render(); });
   $('loadSample').addEventListener('click', () => {
-    const week = mode === 'week';
-    data = week ? SAMPLE_WEEK : SAMPLE; isSample = true;
-    $('caption').value = week ? SAMPLE_WEEK_CAPTION : SAMPLE_CAPTION; $('comment').value = week ? '' : SAMPLE_COMMENT; store.set('current', null);
+    const [d, cap, com] = {
+      day: [SAMPLE, SAMPLE_CAPTION, SAMPLE_COMMENT],
+      week: [SAMPLE_WEEK, SAMPLE_WEEK_CAPTION, ''],
+      zday: [{ ...SAMPLE_ZODIAC, period: 'day', date: '29 ตุลาคม 2569', dayTitle: 'พฤหัสบดี' }, SAMPLE_ZODIAC_CAPTION, ''],
+      zweek: [{ ...SAMPLE_ZODIAC, period: 'week', date: '2 – 8 พฤศจิกายน 2569' }, SAMPLE_ZODIAC_CAPTION, '']
+    }[mode];
+    data = d; isSample = true;
+    $('caption').value = cap; $('comment').value = com; store.set('current', null);
     $('s2').classList.remove('done'); $('parseMsgs').innerHTML = ''; onCaption(); render();
   });
   // the old default pointed to "read more"; the full reading now lives in the comments
@@ -582,7 +618,8 @@ label { font-size: 15px; color: var(--muted); }
         document.fonts.load('400 92px Chonburi', 'ดวงวันพุธ 0123456789'),
         document.fonts.load('400 30px Kanit', 'คนเกิดวันจันทร์ ศุกร์ 0123'),
         document.fonts.load('500 30px Kanit', 'ดูดวงรายวัน เกิดวัน'),
-        document.fonts.load('600 30px Kanit', 'รัชฌา ปัททุม')
+        document.fonts.load('600 30px Kanit', 'รัชฌา ปัททุม'),
+        document.fonts.load('400 30px "Noto Sans Symbols"', '♈♓')
       ]);
       await document.fonts.ready;
     } catch {}
