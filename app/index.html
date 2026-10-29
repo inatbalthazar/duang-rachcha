@@ -105,6 +105,8 @@ label { font-size: 15px; color: var(--muted); }
 
   <section class="step" id="s1">
     <h2><span class="num">1</span>ขอดวงจาก AI</h2>
+    <div class="days" id="modes"></div>
+    <p class="msg warn" id="sundayHint" hidden>วันนี้วันอาทิตย์ อย่าลืมทำดวงประจำสัปดาห์ด้วยนะคะ</p>
     <div class="days" id="days"></div>
     <button class="btn" id="copyPrompt" type="button">คัดลอกคำสั่ง</button>
     <p class="how">แล้วเปิดแอป AI ที่ใช้ (เช่น Claude, ChatGPT, Gemini): <b>กดค้างที่ช่องพิมพ์ → วาง → ส่ง</b> รอจนเขียนเสร็จ แล้วกด <b>ปุ่มคัดลอก</b> ใต้คำตอบ แล้วกลับมาที่หน้านี้</p>
@@ -135,7 +137,7 @@ label { font-size: 15px; color: var(--muted); }
       <summary>ดูหรือแก้แคปชัน (แบบสั้น)</summary>
       <textarea id="caption" spellcheck="false" style="min-height:200px"></textarea>
     </details>
-    <details>
+    <details id="commentBox">
       <summary>ดูหรือแก้คอมเมนต์ (คำทำนายฉบับเต็ม)</summary>
       <textarea id="comment" spellcheck="false" style="min-height:320px"></textarea>
     </details>
@@ -144,14 +146,16 @@ label { font-size: 15px; color: var(--muted); }
   <section class="step" id="s4">
     <h2><span class="num">4</span>โพสต์ลง Facebook</h2>
     <div class="stack" id="directBox" hidden>
-      <button class="btn" id="postBtn" type="button">โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)</button>
+      <button class="btn" id="postBtn" type="button"></button>
       <p class="how" id="postHow">โพสต์ขึ้นหน้าเพจ <b id="pageNameDirect">เพจ</b> ทันทีพร้อมแคปชัน แล้วใส่คำทำนายฉบับเต็มเป็นคอมเมนต์แรกให้ ไม่ต้องเปิดแอป Facebook</p>
       <p class="small" style="text-align:center">หรือแชร์เองตามวิธีด้านล่าง</p>
     </div>
     <button class="btn" id="shareBtn" type="button">แชร์ภาพไป Facebook</button>
     <p class="how">กดแล้วเลือก <b>Facebook</b> ตรวจว่าโพสต์ในนาม <b id="pageNameHow">เพจ</b> จากนั้น <b>กดค้างช่องข้อความ → วาง</b> (แคปชันคัดลอกไว้ให้แล้ว) แล้วกดโพสต์</p>
-    <button class="btn" id="copyComment" type="button">คัดลอกคอมเมนต์</button>
-    <p class="how">โพสต์เสร็จแล้ว กลับมากดปุ่มนี้ แล้วไปที่โพสต์ใน Facebook กด <b>แสดงความคิดเห็น → กดค้าง → วาง</b> แล้วส่ง</p>
+    <div class="stack" id="commentSteps">
+      <button class="btn" id="copyComment" type="button">คัดลอกคอมเมนต์</button>
+      <p class="how">โพสต์เสร็จแล้ว กลับมากดปุ่มนี้ แล้วไปที่โพสต์ใน Facebook กด <b>แสดงความคิดเห็น → กดค้าง → วาง</b> แล้วส่ง</p>
+    </div>
     <div class="pair">
       <button class="btn ghost" id="copyCap" type="button">คัดลอกแคปชัน</button>
       <button class="btn ghost" id="saveBtn" type="button">บันทึกภาพ</button>
@@ -240,6 +244,25 @@ label { font-size: 15px; color: var(--muted); }
 เลขมงคล 15 · สีมงคล ชมพู
 
 ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ`;
+  const SAMPLE_WEEK = {
+    type: 'week', date: '2 – 8 พฤศจิกายน 2569',
+    days: [
+      { day: 'อาทิตย์', reading: 'งานมีเรื่องให้ตัดสินใจหลายอย่าง ค่อยๆ เรียงลำดับก่อนหลัง รายรับเข้ามาตามนัด แต่รายจ่ายจุกจิกเยอะ', love: 'คุยกันตรงๆ จะช่วยคลายเรื่องที่ค้างใจ', single: 'มีคนเก่ากลับมาทักทาย คิดให้ดีก่อนเปิดใจ', health: 'ระวังนอนดึก พักสายตาบ้าง' },
+      { day: 'จันทร์', reading: 'ได้ร่วมงานกับคนใหม่ๆ ไอเดียเข้ากันดี เงินพิเศษจากงานเสริมเริ่มเข้ามา ใช้จ่ายตามแผนไว้ก่อน', love: 'ใส่ใจเรื่องเล็กๆ แล้วอีกฝ่ายจะรู้สึกดี', single: 'เจอคนถูกใจจากกลุ่มเพื่อนที่ทำงาน', health: 'ดื่มน้ำให้มาก ระวังท้องไส้' },
+      { day: 'อังคาร', reading: 'ต้นสัปดาห์งานเร่ง ต้องอาศัยความอดทน ปลายสัปดาห์ผลงานเริ่มเห็นชัด เรื่องเงินใหญ่ๆ รอไปก่อน', love: 'อารมณ์ร้อนง่าย ใจเย็นก่อนพูด', single: 'มีคนแอบมองอยู่ ลองเปิดใจคุยดู', health: 'ระวังปวดหลังจากนั่งนาน' },
+      { day: 'พุธ', reading: 'เอกสารและสัญญาต้องอ่านให้ละเอียด กลางสัปดาห์มีข่าวดีเรื่องงาน รายรับทรงตัว', love: 'ช่วยกันวางแผนอนาคตได้ดี', single: 'ความสัมพันธ์แบบเพื่อนอาจไปไกลกว่านั้น', health: 'พักผ่อนให้พอ ลดความเครียด' },
+      { day: 'พฤหัส', reading: 'ผู้ใหญ่ให้การสนับสนุน งานที่รอผลได้คำตอบที่ดี มีโอกาสได้ของขวัญหรือเรื่องดีๆ เล็กๆ', love: 'หวานขึ้น มีเวลาให้กันมากกว่าเดิม', single: 'มีคนแนะนำให้รู้จัก ลองเปิดใจดู', health: 'ระวังเป็นหวัดช่วงอากาศเปลี่ยน' },
+      { day: 'ศุกร์', reading: 'ความคิดสร้างสรรค์โดดเด่น งานขายและงานสื่อสารไปได้ดี เงินเข้าหลายทางแต่ควรแบ่งเก็บ', love: 'ระวังความหึงหวงเล็กๆ น้อยๆ', single: 'เสน่ห์แรง มีคนเข้ามาทักไม่ขาด', health: 'ออกกำลังกายเบาๆ ช่วยให้สดชื่น' },
+      { day: 'เสาร์', reading: 'งานหนักแต่คุ้มค่า ทำทีละอย่างแล้วจะเสร็จทันเวลา ค่าใช้จ่ายในบ้านเพิ่มขึ้น วางแผนไว้ล่วงหน้า', love: 'ให้เวลากันมากขึ้น ความเข้าใจจะดีขึ้น', single: 'ยังไม่ต้องรีบ ค่อยๆ ศึกษากันไป', health: 'ระวังปวดเมื่อยและพักผ่อนน้อย' }
+    ]
+  };
+  const SAMPLE_WEEK_CAPTION = `ดวงประจำสัปดาห์ 2 – 8 พฤศจิกายน 2569 มาแล้วค่ะ
+ดูดวงวันเกิดของตัวเองในภาพ เตรียมตัวรับสัปดาห์ใหม่ได้เลยค่ะ
+
+ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ
+ติดตามเพจไว้ อ่านดวงใหม่ได้ทุกสัปดาห์นะคะ
+
+#ดวงประจำสัปดาห์ #ดูดวง #ดวงรายสัปดาห์`;
 
   let saved = store.get('current', null);
   let data = saved?.data || SAMPLE;
@@ -249,6 +272,8 @@ label { font-size: 15px; color: var(--muted); }
   let avatarImg = null;
   let current = null;
   let pickedDate = new Date();
+  let mode = 'day';
+  const isWeek = () => data.type === 'week';
 
   // ---------- toast ----------
   let toastTimer;
@@ -258,23 +283,43 @@ label { font-size: 15px; color: var(--muted); }
   }
 
   // ---------- step 1: day choice + prompt ----------
-  function buildDays() {
-    const box = $('days'); box.innerHTML = '';
-    const today = new Date(), tom = new Date(); tom.setDate(today.getDate() + 1);
-    [['วันนี้', today], ['พรุ่งนี้', tom]].forEach(([label, dt], i) => {
+  // two buttons in a row, the first one pressed; onPick runs for the pressed one
+  function choiceRow(box, items, onPick) {
+    box.innerHTML = '';
+    items.forEach(([html, value], i) => {
       const b = document.createElement('button'); b.type = 'button';
-      const { wd } = Duang.thaiDate(dt);
-      b.innerHTML = `${label}<br><small>${wd} ${dt.getDate()} ${new Intl.DateTimeFormat('th-TH', { month: 'short' }).format(dt)}</small>`;
+      b.innerHTML = html;
       b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
       b.addEventListener('click', () => {
-        pickedDate = dt;
         box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+        onPick(value);
       });
       box.appendChild(b);
     });
+    onPick(items[0][1]);
+  }
+  const shortDate = dt => `${dt.getDate()} ${new Intl.DateTimeFormat('th-TH', { month: 'short' }).format(dt)}`;
+  function buildModes() {
+    choiceRow($('modes'), [['ดวงรายวัน', 'day'], ['ดวงประจำสัปดาห์<br><small>ลงทุกวันอาทิตย์</small>', 'week']], m => { mode = m; buildDays(); });
+    $('sundayHint').hidden = new Date().getDay() !== 0;
+  }
+  function buildDays() {
+    const today = new Date();
+    if (mode === 'week') {
+      // weeks run Monday to Sunday; on Sunday "next week" starts tomorrow
+      const next = new Date(today); next.setDate(today.getDate() + ((8 - today.getDay()) % 7 || 7));
+      const cur = new Date(today); cur.setDate(today.getDate() - (today.getDay() + 6) % 7);
+      const span = dt => { const e = new Date(dt); e.setDate(dt.getDate() + 6); return `${shortDate(dt)} – ${shortDate(e)}`; };
+      choiceRow($('days'), [[`สัปดาห์หน้า<br><small>${span(next)}</small>`, next], [`สัปดาห์นี้<br><small>${span(cur)}</small>`, cur]], dt => { pickedDate = dt; });
+    } else {
+      const tom = new Date(); tom.setDate(today.getDate() + 1);
+      const label = (name, dt) => `${name}<br><small>${Duang.thaiDate(dt).wd} ${shortDate(dt)}</small>`;
+      choiceRow($('days'), [[label('วันนี้', today), today], [label('พรุ่งนี้', tom), tom]], dt => { pickedDate = dt; });
+    }
   }
   $('copyPrompt').addEventListener('click', async () => {
-    const p = Duang.buildPrompt(pickedDate, $('pageName').value.trim());
+    const name = $('pageName').value.trim();
+    const p = mode === 'week' ? Duang.buildWeekPrompt(pickedDate, name) : Duang.buildPrompt(pickedDate, name);
     try { await navigator.clipboard.writeText(p); toast('คัดลอกคำสั่งแล้ว เปิดแอป AI แล้ววางในช่องพิมพ์ได้เลย', 6000); }
     catch { toast('คัดลอกไม่สำเร็จ ลองกดอีกครั้ง'); }
   });
@@ -284,10 +329,11 @@ label { font-size: 15px; color: var(--muted); }
     el.innerHTML = '';
     list.forEach(([k, t]) => { const p = document.createElement('p'); p.className = 'msg ' + k; p.textContent = t; el.appendChild(p); });
   }
+  const dataTitle = d => d.type === 'week' ? `ได้ดวงประจำสัปดาห์ ${d.date || ''}` : `ได้ดวงวัน${String(d.dayTitle || '').replace(/^วัน/, '')} ${d.date || ''}`;
   function accept(raw) {
     const { obj, caption, comment, msgs } = Duang.parse(raw);
     if (!obj) { showMsgs($('parseMsgs'), msgs); $('s2').classList.remove('done'); return false; }
-    const head = ['ok', `ได้ดวงวัน${String(obj.dayTitle || '').replace(/^วัน/, '')} ${obj.date || ''} ครบ 7 วันแล้ว`];
+    const head = ['ok', `${dataTitle(obj)} ครบ 7 วันแล้ว`];
     showMsgs($('parseMsgs'), [head, ...msgs.filter(m => m[0] !== 'ok')]);
     $('s2').classList.add('done');
     if (data.date !== obj.date) reroll = 0;
@@ -316,6 +362,7 @@ label { font-size: 15px; color: var(--muted); }
   let renderToken = 0;
   async function render() {
     const token = ++renderToken;
+    syncKind();
     const chosen = Duang.chooseVariants(data, reroll, overrides, store.get('history', []));
     const cv = $('cv');
     Duang.draw(cv, data, chosen, { pageName: $('pageName').value, pageSub: $('pageSub').value, cta: $('cta').value, avatarImg });
@@ -325,6 +372,11 @@ label { font-size: 15px; color: var(--muted); }
     current = { blob, url: URL.createObjectURL(blob), key: chosen.key, date: data.date };
     $('out').src = current.url;
     $('sampleTag').hidden = !isSample;
+  }
+  // the weekly image carries the whole reading, so it has no comment to post
+  function syncKind() {
+    $('commentBox').hidden = isWeek(); $('commentSteps').hidden = isWeek();
+    if (!confirmTimer) $('postBtn').textContent = postLabel();
   }
   function onCaption() {
     showMsgs($('capMsgs'), [...Duang.checkComment($('comment').value), ...Duang.checkCaption($('caption').value)]);
@@ -364,7 +416,8 @@ label { font-size: 15px; color: var(--muted); }
       try {
         await navigator.share({ files: [file] });
         remember();
-        toast(capOk ? 'อย่าลืม: วางแคปชันในช่องข้อความ แล้วโพสต์เสร็จค่อยกด "คัดลอกคอมเมนต์"' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวาง แล้วตามด้วยคอมเมนต์', 7000);
+        if (isWeek()) toast(capOk ? 'อย่าลืม: กดค้างช่องข้อความใน Facebook แล้วเลือก "วาง" แคปชัน' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวางด้วย', 7000);
+        else toast(capOk ? 'อย่าลืม: วางแคปชันในช่องข้อความ แล้วโพสต์เสร็จค่อยกด "คัดลอกคอมเมนต์"' : 'แชร์แล้ว อย่าลืมคัดลอกแคปชันไปวาง แล้วตามด้วยคอมเมนต์', 7000);
       } catch (e) {
         if (e?.name !== 'AbortError') { toast('แชร์ไม่สำเร็จ ลองกด "บันทึกภาพ" แล้วโพสต์จากแอป Facebook แทน', 6000); }
       }
@@ -415,7 +468,7 @@ label { font-size: 15px; color: var(--muted); }
     } catch { fbStatus('err', 'เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่'); }
   });
   let confirmTimer = null;
-  const POST_LABEL = 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
+  const postLabel = () => isWeek() ? 'โพสต์ลงเพจเลย (ภาพ + แคปชัน)' : 'โพสต์ลงเพจเลย (ภาพ + แคปชัน + คอมเมนต์)';
   $('postBtn').addEventListener('click', async () => {
     if (!current) return;
     if (isSample) { toast('นี่เป็นภาพตัวอย่าง ทำขั้นที่ 1 และ 2 ก่อน', 5000); return; }
@@ -423,7 +476,7 @@ label { font-size: 15px; color: var(--muted); }
     // first tap arms, second tap within 6 seconds posts
     if (!confirmTimer) {
       btn.textContent = 'แตะอีกครั้งเพื่อยืนยันโพสต์';
-      confirmTimer = setTimeout(() => { confirmTimer = null; btn.textContent = POST_LABEL; }, 6000);
+      confirmTimer = setTimeout(() => { confirmTimer = null; btn.textContent = postLabel(); }, 6000);
       return;
     }
     clearTimeout(confirmTimer); confirmTimer = null;
@@ -451,7 +504,7 @@ label { font-size: 15px; color: var(--muted); }
     } catch {
       toast('โพสต์ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่ หรือใช้ปุ่มแชร์ด้านล่าง', 8000);
     } finally {
-      btn.disabled = false; btn.textContent = POST_LABEL;
+      btn.disabled = false; btn.textContent = postLabel();
     }
   });
   showDirect();
@@ -475,7 +528,9 @@ label { font-size: 15px; color: var(--muted); }
   $('specDesign').addEventListener('click', () => { overrides = {}; Duang.DIMS.forEach(d => overrides[d.key] = d.spec); syncSelects(); render(); });
   $('autoDesign').addEventListener('click', () => { overrides = {}; syncSelects(); render(); });
   $('loadSample').addEventListener('click', () => {
-    data = SAMPLE; isSample = true; $('caption').value = SAMPLE_CAPTION; $('comment').value = SAMPLE_COMMENT; store.set('current', null);
+    const week = mode === 'week';
+    data = week ? SAMPLE_WEEK : SAMPLE; isSample = true;
+    $('caption').value = week ? SAMPLE_WEEK_CAPTION : SAMPLE_CAPTION; $('comment').value = week ? '' : SAMPLE_COMMENT; store.set('current', null);
     $('s2').classList.remove('done'); $('parseMsgs').innerHTML = ''; onCaption(); render();
   });
   // the old default pointed to "read more"; the full reading now lives in the comments
@@ -516,8 +571,8 @@ label { font-size: 15px; color: var(--muted); }
   // ---------- start ----------
   $('caption').value = saved?.caption ?? SAMPLE_CAPTION;
   $('comment').value = saved ? (saved.comment || '') : SAMPLE_COMMENT;
-  if (saved) { $('s2').classList.add('done'); showMsgs($('parseMsgs'), [['ok', `ล่าสุด: ดวงวัน${String(data.dayTitle || '').replace(/^วัน/, '')} ${data.date || ''}`]]); }
-  buildDays(); buildVariantControls(); showName(); onCaption();
+  if (saved) { $('s2').classList.add('done'); showMsgs($('parseMsgs'), [['ok', `ล่าสุด: ${dataTitle(data).replace(/^ได้/, '')}`]]); }
+  buildModes(); buildVariantControls(); syncKind(); showName(); onCaption();
   setAvatar(store.get('avatar', null));
   if (!store.get('avatar', null)) $('settings').open = true;
 

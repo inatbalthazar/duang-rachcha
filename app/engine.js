@@ -191,8 +191,8 @@ window.Duang = (() => {
 
   // The icon is drawn at its design size around (cx, cy) and scaled down into the badge row;
   // line widths are divided by the scale so strokes stay 2–3px in the final image.
-  function drawIcon(ctx, v, T) {
-    const s = 0.6, ox = W - P - 58, oy = 80;
+  function drawIcon(ctx, v, T, L) {
+    const s = 0.6, ox = W - L.M - 58, oy = L.badgeY + 32;
     const cx = 0, cy = 0;
     ctx.save();
     ctx.translate(ox, oy); ctx.scale(s, s);
@@ -231,34 +231,46 @@ window.Duang = (() => {
     ctx.restore();
   }
 
-  function drawHeader(ctx, v, T, d) {
-    const badge = 'ดูดวงรายวัน';
+  // Daily: one row per birth day under a tall title. Weekly: tighter margins and a shorter header
+  // so the 3 + 4 card grid has room for its longer readings.
+  const LAYOUT = {
+    day:  { M: P, badge: 'ดูดวงรายวัน', badgeY: P - 8, titleY: 236, titleSize: 112, subY: 284, mascotBottom: 320, mascotH: 282, top: 310 },
+    week: { M: 32, badge: 'ดูดวงรายสัปดาห์', badgeY: 30, titleY: 186, titleSize: 96, subY: 236, mascotBottom: 276, mascotH: 248, top: 264 }
+  };
+
+  function drawHeader(ctx, v, T, d, L) {
+    const M = L.M, badge = L.badge;
     ctx.font = F.k5(23);
-    const bw = ctx.measureText(badge).width + 44 + (v.badge === 'sparkle' ? 40 : 0), bh = 44, by = P - 8;
-    rr(ctx, P, by, bw, bh, bh / 2);
+    const bw = ctx.measureText(badge).width + 44 + (v.badge === 'sparkle' ? 40 : 0), bh = 44, by = L.badgeY;
+    rr(ctx, M, by, bw, bh, bh / 2);
     if (v.badge === 'soft') { ctx.fillStyle = rgba(GOLD, 0.16); ctx.fill(); }
     ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke();
-    let tx = P + 22;
-    if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, P + 28, by + bh / 2, 7); ctx.fill(); tx += 20; }
+    let tx = M + 22;
+    if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, M + 28, by + bh / 2, 7); ctx.fill(); tx += 20; }
     text(ctx, badge, tx, by + 30, F.k5, 23, GOLD);
-    if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, P + bw - 28, by + bh / 2, 7); ctx.fill(); }
+    if (v.badge === 'sparkle') { ctx.fillStyle = GOLD; sparkle(ctx, M + bw - 28, by + bh / 2, 7); ctx.fill(); }
 
     const m = v.mascot !== 'none' && mascots[v.mascot];
-    let textMax = W - P * 2 - 70;
-    if (m) textMax = drawMascot(ctx, m) - P - 12;
-    else drawIcon(ctx, v, T);
-
-    drawTitle(ctx, d, textMax);
+    let textMax = W - M * 2 - 70;
+    if (m) textMax = drawMascot(ctx, m, L) - M - 12;
+    else drawIcon(ctx, v, T, L);
 
     const date = String(d.date || '').trim();
-    if (date) text(ctx, `ตรวจดวงประจำวัน${/^\d/.test(date) ? 'ที่ ' : ''}${date}`, P, 284, F.k5, 29, SUB, 'left', m ? textMax : W - P * 2);
+    if (d.type === 'week') {
+      drawTitle(ctx, 'ดวงประจำ', 'สัปดาห์', 'rainbow', L, textMax);
+      if (date) text(ctx, `ตรวจดวงวันที่ ${date}`, M, L.subY, F.k5, 29, SUB, 'left', m ? textMax : W - M * 2);
+    } else {
+      const day = String(d.dayTitle || '').trim().replace(/^วัน/, '');
+      drawTitle(ctx, 'ดวงวัน', day, DAY_COLORS[day] || DAY_COLORS[day.replace(/บดี$/, '')] || GOLD, L, textMax);
+      if (date) text(ctx, `ตรวจดวงประจำวัน${/^\d/.test(date) ? 'ที่ ' : ''}${date}`, M, L.subY, F.k5, 29, SUB, 'left', m ? textMax : W - M * 2);
+    }
   }
 
   // Bust sits on the first card (its flat bottom tucks under the card, drawn later); returns its left edge.
-  function drawMascot(ctx, img) {
-    const bottom = 320, h = 282;
+  function drawMascot(ctx, img, L) {
+    const bottom = L.mascotBottom, h = L.mascotH;
     const w = h * img.width / img.height;
-    const right = W - P + 14, left = right - w, top = bottom - h;
+    const right = W - L.M + 14, left = right - w, top = bottom - h;
     const cx = left + w / 2, cy = top + h * 0.45;
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, h * 0.75);
     g.addColorStop(0, rgba(GOLD, 0.26)); g.addColorStop(1, rgba(GOLD, 0));
@@ -273,24 +285,27 @@ window.Duang = (() => {
     return left;
   }
 
-  // "ดวงวัน" in glowing gold, the day name in that day's color.
-  function drawTitle(ctx, d, maxW) {
-    const day = String(d.dayTitle || '').trim().replace(/^วัน/, '');
-    const a = 'ดวงวัน', b = day;
-    const x = P - 2, y = 236;
-    let size = 112;
+  // `a` in glowing gold, `b` in a day color ("ดวงวัน" + day name), or across all 7 day colors for the week.
+  function drawTitle(ctx, a, b, bColor, L, maxW) {
+    const x = L.M - 2, y = L.titleY;
+    let size = L.titleSize;
     ctx.font = F.display(size);
     while (size > 60 && ctx.measureText(a + b).width > maxW) { size -= 1; ctx.font = F.display(size); }
     const wa = ctx.measureText(a).width;
     const gold = ctx.createLinearGradient(0, y - size * 0.9, 0, y + size * 0.1);
     gold.addColorStop(0, '#FFF3C9'); gold.addColorStop(0.5, '#F2CC6E'); gold.addColorStop(1, '#D29A35');
-    const dc = DAY_COLORS[day] || DAY_COLORS[day.replace(/บดี$/, '')] || GOLD;
+    let dc = bColor;
+    if (bColor === 'rainbow') {
+      const wb = ctx.measureText(b).width;
+      dc = ctx.createLinearGradient(x + wa, 0, x + wa + wb, 0);
+      DAY_ORDER.forEach((c, i) => dc.addColorStop(i / (DAY_ORDER.length - 1), c));
+    }
     ctx.save();
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
     // glow pass, then a same-color stroke so the single-weight display face reads heavier
     ctx.shadowColor = rgba(GOLD, 0.55); ctx.shadowBlur = 30;
     ctx.fillStyle = gold; ctx.fillText(a, x, y);
-    ctx.shadowColor = rgba(dc, 0.6);
+    ctx.shadowColor = typeof dc === 'string' ? rgba(dc, 0.6) : rgba(GOLD, 0.45);
     ctx.fillStyle = dc; ctx.fillText(b, x + wa, y);
     ctx.shadowBlur = 0;
     ctx.lineWidth = Math.max(2, size * 0.028);
@@ -387,7 +402,8 @@ window.Duang = (() => {
     ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 11); ctx.moveTo(cx - 8, cy + 3); ctx.lineTo(cx, cy + 11); ctx.lineTo(cx + 8, cy + 3); ctx.stroke();
   }
 
-  function drawFooter(ctx, v, T, S) {
+  // P here is the layout's side margin (the weekly grid uses a narrower one); the CTA is daily only.
+  function drawFooter(ctx, v, T, S, P, showCta = true) {
     const cy = H - P - 36, ax = P + 36;
     ctx.save(); ctx.beginPath(); ctx.arc(ax, cy, 34, 0, Math.PI * 2); ctx.clip();
     if (S.avatarImg) {
@@ -403,7 +419,7 @@ window.Duang = (() => {
     ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, cy, 35.5, 0, Math.PI * 2); ctx.stroke();
 
     const tx = P + 72 + 18;
-    const cta = (S.cta || '').trim();
+    const cta = showCta ? (S.cta || '').trim() : '';
     let ctaLeft = W - P;
     if (cta) {
       const fs = fit(ctx, cta, F.k5, 24, 470);
@@ -461,12 +477,130 @@ window.Duang = (() => {
     const T = THEMES[v.theme];
     ctx.clearRect(0, 0, W, H);
     drawBackground(ctx, v, rng, T);
-    drawHeader(ctx, v, T, d);
-    const rows = d.days.slice(0, 7);
-    const top = 310, bottom = H - P - 72 - 26, gap = 10;
-    const rowH = (bottom - top - gap * (rows.length - 1)) / rows.length;
-    rows.forEach((item, i) => drawRow(ctx, v, T, item, i, top + i * (rowH + gap), rowH));
-    drawFooter(ctx, v, T, S);
+    const week = d.type === 'week', L = week ? LAYOUT.week : LAYOUT.day;
+    drawHeader(ctx, v, T, d, L);
+    if (week) drawWeekGrid(ctx, v, T, d.days.slice(0, 7), L);
+    else {
+      const rows = d.days.slice(0, 7);
+      const top = L.top, bottom = H - P - 72 - 26, gap = 10;
+      const rowH = (bottom - top - gap * (rows.length - 1)) / rows.length;
+      rows.forEach((item, i) => drawRow(ctx, v, T, item, i, top + i * (rowH + gap), rowH));
+    }
+    drawFooter(ctx, v, T, S, L.M, !week);
+  }
+
+  // ---------- weekly: 3 cards over 4, each with the reading plus love / single / health ----------
+  const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('th', { granularity: 'word' }) : null;
+  const CLUSTER = /\S[ัิ-ฺ็-๎]*|\s+/g;
+  const words = t => segmenter ? [...segmenter.segment(t)].map(x => x.segment) : (t.match(/\s+|\S+/g) || []);
+  // Thai has no spaces between words, so lines break at dictionary word boundaries (Intl.Segmenter),
+  // falling back to character clusters for anything wider than a line. `indent` shortens the first line.
+  function wrapThai(ctx, t, maxW, indent = 0) {
+    const lines = [];
+    let cur = '', limit = maxW - indent;
+    const push = () => { lines.push(cur.trim()); cur = ''; limit = maxW; };
+    for (const wd of words(String(t).replace(/\s+/g, ' ').trim())) {
+      const next = cur + wd;
+      if (ctx.measureText(next.trimEnd()).width <= limit) { cur = next; continue; }
+      if (!wd.trim()) { push(); continue; }
+      if (/^[ๆฯ.,!?)\]"'”]/.test(wd) && cur.trim()) { cur = next; continue; } // never start a line with these
+      if (cur.trim()) push();
+      if (ctx.measureText(wd).width > limit) {
+        for (const c of wd.match(CLUSTER) || []) {
+          if (cur && ctx.measureText(cur + c).width > limit) push();
+          cur += c;
+        }
+      } else cur = wd;
+    }
+    if (cur.trim()) lines.push(cur.trim());
+    return lines;
+  }
+
+  const WEEK_PARTS = [['love', 'ความรัก'], ['single', 'คนโสด'], ['health', 'สุขภาพ']];
+  function weekBlocks(ctx, item, w, s) {
+    ctx.font = F.k4(s);
+    const blocks = [{ lines: wrapThai(ctx, item.reading || '', w), color: '#FFFFFF' }];
+    WEEK_PARTS.forEach(([k, label]) => {
+      const t = String(item[k] || '').trim();
+      if (!t) return;
+      ctx.font = F.k5(s * 0.9);
+      const pw = ctx.measureText(label).width + s * 0.9;
+      ctx.font = F.k4(s);
+      blocks.push({ label, pw, lines: wrapThai(ctx, t, w, pw + s * 0.4), color: '#DCDFF5' });
+    });
+    const lh = s * 1.46, gap = s * 0.5;
+    return { blocks, lh, gap, height: blocks.reduce((a, b) => a + b.lines.length * lh, 0) + gap * (blocks.length - 1) };
+  }
+
+  function drawWeekGrid(ctx, v, T, items, L) {
+    const M = L.M, gap = 14, band = 58, pad = 16;
+    const top = L.top, bottom = H - M - 72 - 16;
+    const rowH = (bottom - top - gap) / 2;
+    [[0, 3], [3, 7]].forEach(([a, b], r) => {
+      const row = items.slice(a, b), n = row.length;
+      const w = (W - 2 * M - gap * (n - 1)) / n, y = top + r * (rowH + gap);
+      const bodyH = rowH - band - pad * 2;
+      // one text size per row, the largest at which every card in the row fits
+      let s = 24;
+      row.forEach(it => { while (s > 14 && weekBlocks(ctx, it, w - pad * 2, s).height > bodyH) s -= 0.5; });
+      row.forEach((it, k) => drawWeekCard(ctx, v, T, it, a + k, M + k * (w + gap), y, w, rowH, s, band, pad));
+    });
+  }
+
+  function drawWeekCard(ctx, v, T, item, i, x, y, w, h, s, band, pad) {
+    const dayName = String(item.day || '').trim();
+    const dc = DAY_COLORS[dayName] || DAY_ORDER[i % 7];
+    const R = 18;
+    rr(ctx, x, y, w, h, R); ctx.fillStyle = T.card; ctx.fill();
+    if (v.card === 'glow') {
+      ctx.save(); rr(ctx, x, y, w, h, R); ctx.clip();
+      const g = ctx.createLinearGradient(0, y, 0, y + h * 0.7);
+      g.addColorStop(0, rgba(dc, 0.2)); g.addColorStop(1, rgba(dc, 0));
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore();
+    }
+    if (v.card === 'outline') { rr(ctx, x + 0.75, y + 0.75, w - 1.5, h - 1.5, R); ctx.strokeStyle = rgba(dc, 0.5); ctx.lineWidth = 1.5; ctx.stroke(); }
+
+    // day band across the top, in the same three styles as the daily day chip
+    let bx = x, bw = w, by = y, bh = band;
+    ctx.save();
+    if (v.chip === 'inset') {
+      bx = x + 10; bw = w - 20; by = y + 10; bh = band - 10;
+      rr(ctx, bx, by, bw, bh, bh / 2); ctx.fillStyle = dc; ctx.fill();
+    } else {
+      rr(ctx, x, y, w, h, R); ctx.clip(); ctx.fillStyle = dc; ctx.beginPath();
+      if (v.chip === 'slant') { bw = w * 0.8; ctx.moveTo(x, y); ctx.lineTo(x + bw, y); ctx.lineTo(x + bw - 24, y + band); ctx.lineTo(x, y + band); bw -= 12; }
+      else ctx.rect(x, y, w, band);
+      ctx.fill();
+    }
+    ctx.restore();
+    const pre = 'เกิดวัน', bcy = by + bh / 2;
+    let ns = 32;
+    const measure = () => { ctx.font = F.k5(ns * 0.56); const a = ctx.measureText(pre).width; ctx.font = F.display(ns); return [a, ctx.measureText(dayName).width]; };
+    let [wa, wn] = measure();
+    while (ns > 20 && wa + 8 + wn > bw - 24) { ns -= 1; [wa, wn] = measure(); }
+    const lx = bx + (bw - (wa + 8 + wn)) / 2;
+    text(ctx, pre, lx, bcy + ns * 0.36, F.k5, ns * 0.56, NAVY);
+    text(ctx, dayName, lx + wa + 8, bcy + ns * 0.4, F.display, ns, NAVY);
+
+    // body: spread any spare height between the paragraphs
+    const tw = w - pad * 2, L = weekBlocks(ctx, item, tw, s);
+    const bodyH = h - band - pad * 2;
+    const gap = L.blocks.length > 1 ? Math.min(s * 1.4, L.gap + (bodyH - L.height) / (L.blocks.length - 1)) : 0;
+    let ty = y + band + pad;
+    L.blocks.forEach(bk => {
+      let ix = 0;
+      if (bk.label) {
+        const ph = s * 1.24, pcy = ty + L.lh / 2;
+        rr(ctx, x + pad, pcy - ph / 2, bk.pw, ph, ph / 2); ctx.fillStyle = rgba(dc, 0.22); ctx.fill();
+        text(ctx, bk.label, x + pad + bk.pw / 2, pcy + s * 0.32, F.k5, s * 0.9, dc, 'center');
+        ix = bk.pw + s * 0.4;
+      }
+      bk.lines.forEach((ln, li) => {
+        text(ctx, ln, x + pad + (li ? 0 : ix), ty + L.lh / 2 + s * 0.36, F.k4, s, bk.color);
+        ty += L.lh;
+      });
+      ty += gap;
+    });
   }
 
   // ---------- public: parse Claude's answer ----------
@@ -494,10 +628,10 @@ window.Duang = (() => {
   }
 
   // Make sure the hashtag line carries the post's own day, e.g. #ดวงวันพุธ (put first).
-  function ensureDayTag(t, dayTitle) {
+  function ensureDayTag(t, dayTitle, fixedTag) {
     const day = String(dayTitle || '').trim().replace(/^วัน/, '').replace(/\s+/g, '');
-    if (!day) return t;
-    const tag = `#ดวงวัน${day}`;
+    if (!day && !fixedTag) return t;
+    const tag = fixedTag || `#ดวงวัน${day}`;
     if (new RegExp(`${tag}(?![\\u0E00-\\u0E7F])`).test(t)) return t;
     const lines = t.split('\n');
     const i = lines.findIndex(l => l.trim().startsWith('#'));
@@ -533,9 +667,22 @@ window.Duang = (() => {
     const mark = caption.match(COMMENT_MARK);
     if (mark) { comment = cleanCaption(caption.slice(mark.index + mark[0].length)); caption = caption.slice(0, mark.index); }
     caption = cleanCaption(caption);
-    if (obj && caption) caption = ensureDayTag(caption, obj.dayTitle);
     if (!obj) return { msgs: [['err', 'ยังหาดวงในข้อความที่วางไม่เจอ ลองกลับไปที่แอป AI แล้วกดคัดลอกคำตอบทั้งหมดอีกครั้ง']] };
     if (!Array.isArray(obj.days) || obj.days.length < 7) return { msgs: [['err', 'ดวงยังไม่ครบ 7 วัน (อาทิตย์ถึงเสาร์) ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']] };
+    if (obj.type === 'week' || obj.days.some(x => x && x.reading)) {
+      // weekly: the image carries the whole reading, so there is no comment and no ratings
+      obj.type = 'week'; obj.days = obj.days.slice(0, 7);
+      obj.days.forEach(it => ['reading', 'love', 'single', 'health'].forEach(k => { if (typeof it[k] === 'string') it[k] = femaleVoice(it[k]); }));
+      if (caption) caption = ensureDayTag(caption, '', '#ดวงประจำสัปดาห์');
+      if (!obj.date) msgs.push(['warn', 'ไม่มีช่วงวันที่ ภาพจะไม่มีวันที่']);
+      obj.days.forEach((it, i) => {
+        const n = it.day || `ช่อง ${i + 1}`;
+        if (!String(it.reading || '').trim()) msgs.push(['warn', `${n}: ไม่มีคำทำนาย`]);
+        if (thaiLen([it.reading, it.love, it.single, it.health].join('')) > 260) msgs.push(['warn', `${n}: คำทำนายยาวไป ตัวหนังสือจะเล็กลง`]);
+      });
+      return { obj, caption, comment: '', msgs };
+    }
+    if (caption) caption = ensureDayTag(caption, obj.dayTitle);
     if (!comment) msgs.push(['warn', 'ไม่มีคำทำนายฉบับเต็มสำหรับคอมเมนต์ ลองคัดลอกคำสั่งใหม่แล้วให้ AI เขียนอีกครั้ง']);
     if (!obj.date) msgs.push(['warn', 'ไม่มีวันที่ ภาพจะไม่มีวันที่']);
     if (!obj.dayTitle) msgs.push(['warn', 'ไม่มีชื่อวัน หัวข้อจะเหลือแค่ "ดวงวัน"']);
@@ -632,16 +779,64 @@ window.Duang = (() => {
 (ข้อมูลต้องตรงกับ JSON)
 ปิดท้าย: "ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" (ส่วนนี้ไม่ต้องมีแฮชแท็ก)
 
-ผู้เขียนเป็นผู้หญิง ใช้คำลงท้าย "ค่ะ" หรือ "คะ" (คำถาม) เท่านั้น ห้ามใช้ "ครับ" และห้ามแทนตัวเองว่า "ผม"
+${promptRules('ใช้อีโมจิเฉพาะหัวข้อแต่ละวันและ 👇 ในแคปชัน')}`;
+  }
+
+  // Voice and Facebook rules shared by the daily and weekly prompts.
+  function promptRules(emoji) {
+    return `ผู้เขียนเป็นผู้หญิง ใช้คำลงท้าย "ค่ะ" หรือ "คะ" (คำถาม) เท่านั้น ห้ามใช้ "ครับ" และห้ามแทนตัวเองว่า "ผม"
 เว้นบรรทัดว่าง 1 บรรทัดหลังจบแต่ละส่วนเสมอ
 
-ข้อห้ามของแคปชันและคอมเมนต์ (ผิดกฎหรือ Facebook ลดการมองเห็น)
+ข้อห้าม (ผิดกฎหรือ Facebook ลดการมองเห็น)
 - ห้ามขอให้พิมพ์ "สาธุ" หรือคอมเมนต์เพื่อรับโชค ห้ามชวนแชร์ แท็กเพื่อน หรือกดไลก์เพื่อรับดวง
 - ห้ามพูดถึงหวย เลขเด็ด สลาก หรือการพนัน และห้ามโยงเลขมงคลกับการเสี่ยงโชคด้วยเงิน
 - ห้ามรับประกันผล (เช่น รวยแน่ 100%) ห้ามชวนซื้อของแก้ดวงหรือโอนเงิน
 - ห้ามให้คำแนะนำเจาะจงเรื่องการลงทุนหรือสุขภาพ
-- ใช้อีโมจิเฉพาะหัวข้อแต่ละวันและ 👇 ในแคปชัน ไม่ใส่อีโมจิรกทุกบรรทัด ไม่ใช้เครื่องหมาย !!! ซ้ำๆ`;
+- ${emoji} ไม่ใส่อีโมจิรกทุกบรรทัด ไม่ใช้เครื่องหมาย !!! ซ้ำๆ`;
   }
 
-  return { W, H, DIMS, loadMascots, chooseVariants, draw, parse, formatCaption, checkCaption, checkComment, buildPrompt, thaiDate };
+  // Monday to Sunday starting at `start`, e.g. "2 – 8 พฤศจิกายน 2569" or "30 พฤศจิกายน – 6 ธันวาคม 2569".
+  function weekRange(start) {
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    const a = thaiDate(start).ds, b = thaiDate(end).ds;
+    if (start.getFullYear() !== end.getFullYear()) return `${a} – ${b}`;
+    if (start.getMonth() !== end.getMonth()) return `${a.replace(/\s*\S+$/, '')} – ${b}`;
+    return `${start.getDate()} – ${b}`;
+  }
+
+  function buildWeekPrompt(start, pageName) {
+    const range = weekRange(start);
+    return `เขียนดูดวงประจำสัปดาห์สำหรับคนเกิดทั้ง 7 วัน (อาทิตย์ถึงเสาร์) ของวันที่ ${range}
+
+ตอบเป็น JSON ก่อน ตามรูปแบบนี้เป๊ะๆ (ใส่ใน code block)
+{
+  "type": "week",
+  "date": "${range}",
+  "days": [
+    { "day": "อาทิตย์", "reading": "...", "love": "...", "single": "...", "health": "..." },
+    ... ให้ครบ 7 รายการตามลำดับ อาทิตย์ จันทร์ อังคาร พุธ พฤหัส ศุกร์ เสาร์ (ใช้ชื่อวันตามนี้เป๊ะๆ)
+  ]
+}
+
+กติกาของ JSON
+- reading ภาพรวมเรื่องงานและการเงินของสัปดาห์ 2 ประโยค ยาวราว 60–90 ตัวอักษร
+- love ความรักของคนมีคู่ 1 ประโยค ราว 30–50 ตัวอักษร
+- single ความรักของคนโสด 1 ประโยค ราว 30–50 ตัวอักษร
+- health สุขภาพ 1 ประโยคสั้น ราว 20–40 ตัวอักษร เป็นข้อควรระวังทั่วไป เช่น พักผ่อน ความเครียด ห้ามแนะนำยาหรือการรักษา และห้ามทำนายโรคร้ายแรง
+- แต่ละวันมีทั้งเรื่องดีและเรื่องที่ควรระวัง ใช้คำขึ้นต้นและโทนต่างกัน อย่าใช้รูปประโยคซ้ำกัน
+- น้ำเสียงอบอุ่น ให้กำลังใจ ไม่ทำนายเรื่องน่ากลัว เช่น ความตาย อุบัติเหตุร้ายแรง คดีความ การหย่าร้าง
+- ไม่ต้องใส่ชื่อวันหรือคำว่า "คนเกิดวัน..." ซ้ำในข้อความ
+
+หลัง JSON ให้เขียนแคปชันโพสต์ Facebook แบบสั้น เป็นข้อความธรรมดา ไม่ใส่ code block ไม่ใช้ตัวหนาหรือเครื่องหมาย markdown ตามโครงนี้
+บรรทัดที่ 1: ประโยคเปิดสั้นๆ ไม่เกิน 60 ตัวอักษร บอกว่าเป็นดวงประจำสัปดาห์ ${range}
+บรรทัดที่ 2: ชวนดูดวงของวันเกิดตัวเองในภาพ เพื่อเตรียมตัวรับสัปดาห์ใหม่ 1 ประโยค
+(เว้นหนึ่งบรรทัด)
+"ดวงเป็นแนวทางเพื่อความบันเทิง โปรดใช้วิจารณญาณ" และชวนติดตามเพจ${pageName ? ' ' + pageName : ''} ไว้อ่านดวงใหม่ทุกสัปดาห์แบบสุภาพ 1 บรรทัด
+(เว้นหนึ่งบรรทัด)
+แฮชแท็ก 3–5 อัน ต้องมี #ดวงประจำสัปดาห์ เป็นอันแรกเสมอ ตามด้วยแฮชแท็กทั่วไป เช่น #ดูดวง #ดวงรายสัปดาห์
+
+${promptRules('ใช้อีโมจิได้ไม่เกิน 2 ตัวในแคปชัน')}`;
+  }
+
+  return { W, H, DIMS, loadMascots, chooseVariants, draw, parse, formatCaption, checkCaption, checkComment, buildPrompt, buildWeekPrompt, weekRange, thaiDate };
 })();
